@@ -3,6 +3,7 @@
 **Institute:** IIT Madras  
 **Stack:** MERN + TypeScript  
 **Team:** 2 developers  
+**Start Date:** 11-04-2026  
 **Last Updated:** 2026
 
 ---
