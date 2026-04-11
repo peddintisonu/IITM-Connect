@@ -135,7 +135,10 @@ git push origin feature/your-feature-name
 
 ## 👤 Author
 
-Built by Siva Peddinti
+Built by
 
 - **GitHub:** [@peddintisonu](https://github.com/peddintisonu)
+
 - **LinkedIn:** [Siva Peddinti](https://www.linkedin.com/in/siva-vardhan-peddinti/)
+
+- **GitHub:** [@abhiramcode](https://github.com/abhiramcode)
