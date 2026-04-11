@@ -29,10 +29,13 @@
 	},
 	"homepage": "https://github.com/peddintisonu/IITM-Connect#readme",
 	"devDependencies": {
+		"@typescript-eslint/eslint-plugin": "^8.58.1",
+		"@typescript-eslint/parser": "^8.58.1",
 		"concurrently": "^9.2.1",
 		"eslint": "^9.x",
 		"eslint-config-prettier": "^10.x",
 		"eslint-plugin-prettier": "^5.x",
+		"globals": "^17.4.0",
 		"prettier": "^3.x",
 		"rimraf": "^6.x",
 		"typescript": "^6.x"

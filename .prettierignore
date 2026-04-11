@@ -1,0 +1,32 @@
+# Ignore node_modules
+node_modules/
+*/node_modules/
+
+# Ignore build output
+dist/
+build/
+.next/
+.out/
+.vite/
+
+# Ignore environment files
+*.env   
+.env
+.env.*
+
+# Ignore logs
+*.log
+
+# Ignore coverage reports
+coverage/
+
+# Ignore lock files
+package-lock.json
+
+# Ignore IDE settings
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+Thumbs.db
