@@ -81,6 +81,56 @@ npm install <package> -w server
 npm install <package> -w client
 ```
 
+## 🤝 Contributing
+
+This is a closed project for IIT Madras students. If you're a contributor with access:
+
+### Setup
+
+1. Fork the repo on GitHub
+2. Clone your fork locally
+```bash
+git clone https://github.com/YOUR_USERNAME/IITM-Connect.git
+cd IITM-Connect
+```
+3. Add the original repo as upstream
+```bash
+git remote add upstream https://github.com/peddintisonu/IITM-Connect.git
+```
+4. Follow the Quick Start steps above to get the project running locally.
+
+### Workflow
+
+1. Always pull latest from upstream before starting work
+```bash
+git pull upstream main
+```
+2. Never push directly to `main`
+3. Create a branch for your feature
+```bash
+git checkout -b feature/your-feature-name
+```
+4. Make your changes and commit clearly
+```bash
+git commit -m "feat: add org creation endpoint"
+```
+5. Push to your fork
+```bash
+git push origin feature/your-feature-name
+```
+6. Open a Pull Request on GitHub from your fork against `main`
+7. Wait for review before merging
+
+### Commit Message Convention
+
+| Prefix | Use for |
+| :--- | :--- |
+| `feat:` | New feature |
+| `fix:` | Bug fix |
+| `chore:` | Config, cleanup |
+| `docs:` | Documentation |
+| `refactor:` | Code restructure, no feature change |
+
 ---
 
 ## 👤 Author
