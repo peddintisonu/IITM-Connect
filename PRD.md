@@ -323,10 +323,34 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 | Domain check | Must end with @smail.iitm.ac.in               |
 | Onboarding   | Name, roll no, dept, hostel, course, username |
 | Login        | Google OAuth — one tap, no password           |
-| Session      | JWT in httpOnly cookie, 7 day expiry          |
+| Session      | Access token (15m) + Refresh token (7d) in httpOnly cookies |
 | Username     | Social identity only, not used for login      |
 
----
+### Token Strategy
+- Access token — 15 minutes, JWT in httpOnly cookie
+- Refresh token — 7 days, JWT in httpOnly cookie, stored in Session collection
+- Refresh token rotation — old session deleted and new one issued on every refresh
+- tokenVersion on Student — incrementing invalidates all sessions at once (logout all devices)
+
+### Session
+- One Session document per logged in device
+- Stores: userId, refreshToken, deviceInfo (browser + OS), expiresAt
+- TTL index on expiresAt — MongoDB auto deletes expired sessions
+- On re-login — existing session replaced if same device fingerprint
+
+### Auth Routes
+| Method | Route | Protection | Description |
+|--------|-------|------------|-------------|
+| GET | /api/v1/auth/google | redirectIfAuthenticated | Triggers Google OAuth |
+| GET | /api/v1/auth/google/callback | — | Google redirect, issues tokens |
+| GET | /api/v1/auth/me | protectRoute | Returns current student |
+| POST | /api/v1/auth/refresh | — | Rotates tokens |
+| POST | /api/v1/auth/logout | protectRoute | Clears current session |
+| POST | /api/v1/auth/logout-all | protectRoute | Clears all sessions, increments tokenVersion |
+
+### Middleware
+- protectRoute — verifies access token JWT + tokenVersion match
+- redirectIfAuthenticated — redirects logged in users away from /google
 
 ## 9. Pages & Social
 
