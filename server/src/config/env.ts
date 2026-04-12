@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import z from "zod";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const schema = z.object({
     PORT: z.string().default("5000"),

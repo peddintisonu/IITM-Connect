@@ -1,0 +1,102 @@
+// server/src/shared/constants/masterData.ts
+
+export const COURSES = [
+    {
+        code: "B",
+        abbreviation: "B.Tech",
+        name: "Bachelor of Technology",
+        duration: 4,
+    },
+    {
+        code: "S",
+        abbreviation: "B.S.",
+        name: "Bachelor of Science",
+        duration: 4,
+    },
+    {
+        code: "D",
+        abbreviation: "Dual Degree",
+        name: "Integrated B.Tech + M.Tech",
+        duration: 5,
+    },
+    {
+        code: "M",
+        abbreviation: "M.Tech",
+        name: "Master of Technology",
+        duration: 2,
+    },
+    { code: "A", abbreviation: "M.A.", name: "Master of Arts", duration: 2 },
+    {
+        code: "P",
+        abbreviation: "Ph.D.",
+        name: "Doctor of Philosophy",
+    },
+    {
+        code: "L",
+        abbreviation: "M.S.",
+        name: "Master of Science by Research",
+        duration: 2,
+    },
+    {
+        code: "C",
+        abbreviation: "M.Sc.",
+        name: "Master of Science",
+        duration: 2,
+    },
+    {
+        code: "E",
+        abbreviation: "MBA",
+        name: "Master of Business Administration",
+        duration: 2,
+    },
+    {
+        code: "V",
+        abbreviation: "BS",
+        name: "Medical Science and Engineering",
+        duration: 4,
+    },
+];
+
+export const DEPARTMENTS = [
+    { code: "AE", name: "Aerospace Engineering" },
+    { code: "AM", name: "Applied Mechanics & Biomedical Engineering" },
+    { code: "BE", name: "Biotechnology" },
+    { code: "CH", name: "Chemical Engineering" },
+    { code: "CY", name: "Chemistry" },
+    { code: "CE", name: "Civil Engineering" },
+    { code: "CS", name: "Computer Science & Engineering" },
+    { code: "DA", name: "Data Science & Artificial Intelligence" },
+    { code: "EE", name: "Electrical Engineering" },
+    { code: "ED", name: "Engineering Design" },
+    { code: "HS", name: "Humanities & Social Sciences" },
+    { code: "MS", name: "Management Studies" },
+    { code: "MA", name: "Mathematics" },
+    { code: "ME", name: "Mechanical Engineering" },
+    { code: "MM", name: "Metallurgical & Materials Engineering" },
+    { code: "OE", name: "Ocean Engineering" },
+    { code: "PH", name: "Physics" },
+    { code: "MD", name: "Medical Sciences & Technology" },
+];
+
+export const HOSTELS = [
+    { name: "Alakananda", code: "AL", type: "boys" },
+    { name: "Brahmaputra", code: "BR", type: "boys" },
+    { name: "Cauvery", code: "CA", type: "boys" },
+    { name: "Ganga", code: "GA", type: "boys" },
+    { name: "Godavari", code: "GO", type: "boys" },
+    { name: "Jamuna", code: "JA", type: "boys" },
+    { name: "Krishna", code: "KR", type: "boys" },
+    { name: "Mahanadhi", code: "MH", type: "boys" },
+    { name: "Mandakini", code: "MN", type: "boys" },
+    { name: "Narmada", code: "NA", type: "boys" },
+    { name: "Pampa", code: "PA", type: "boys" },
+    { name: "Saraswathi", code: "SW", type: "boys" },
+    { name: "Sindhu", code: "SI", type: "boys" },
+    { name: "Tamiraparani", code: "TP", type: "boys" },
+    { name: "Tapti", code: "TA", type: "boys" },
+    { name: "Sarayu", code: "SA", type: "girls" },
+    { name: "Sharavathi", code: "SH", type: "girls" },
+    { name: "Sabarmati", code: "SB", type: "girls" },
+    { name: "Swarnamukhi", code: "SM", type: "girls" },
+    { name: "Bhadra", code: "TH", type: "girls" },
+];

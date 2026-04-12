@@ -7,9 +7,9 @@ import {
 import { ApiResponse } from "../../shared/utils";
 import { ApiError } from "../../shared/utils/ApiError";
 import { asyncHandler } from "../../shared/utils/asyncHandler";
+import Session from "../student/session.model";
 import { IStudent } from "../student/student.model";
 import { generateTokens, refreshAccessToken } from "./auth.service";
-import Session from "./session.model";
 
 export const googleCallback = asyncHandler(
     async (req: Request, res: Response) => {

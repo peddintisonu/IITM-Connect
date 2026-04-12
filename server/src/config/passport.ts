@@ -2,6 +2,7 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import Student from "../modules/student/student.model";
+import { createStudentFromOAuth } from "../modules/student/student.service";
 import { ENV } from "./env";
 
 passport.use(
@@ -23,11 +24,11 @@ passport.use(
                 let student = await Student.findOne({ email });
 
                 if (!student) {
-                    student = await Student.create({
+                    student = await createStudentFromOAuth(
                         email,
-                        name: profile.displayName,
-                        profilePicture: profile.photos?.[0]?.value,
-                    });
+                        profile.displayName,
+                        profile.photos?.[0]?.value ?? ""
+                    );
                 }
 
                 return done(null, student);

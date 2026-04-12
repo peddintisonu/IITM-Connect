@@ -3,8 +3,8 @@ import jwt from "jsonwebtoken";
 import { ENV } from "../../config/env";
 import { tokenExpiry } from "../../shared/constants/auth.constants";
 import { ApiError } from "../../shared/utils";
+import Session from "../student/session.model";
 import Student, { IStudent } from "../student/student.model";
-import Session from "./session.model";
 
 export const generateTokens = async (
     student: IStudent,

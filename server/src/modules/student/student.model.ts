@@ -1,52 +1,142 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
+
+export interface IRollNoHistory {
+    rollNo: string;
+    deptId: mongoose.Types.ObjectId;
+    courseId: mongoose.Types.ObjectId;
+    batch: number;
+}
+
+export interface IHostelHistory {
+    hostelId: mongoose.Types.ObjectId;
+    roomNo: number;
+}
+
+export interface ILink {
+    label: string;
+    url: string;
+}
 
 export interface IStudent extends mongoose.Document {
-    name: string;
+    fullName: string;
     email: string;
-    profilePicture?: string;
+    displayName?: string;
     username?: string;
+    profilePhoto?: string;
+    coverPhoto?: string;
+    bio?: string;
+    links: ILink[];
+    interests: string[];
+    skills: string[];
+    currentRollNo?: string;
+    currentDeptId?: mongoose.Types.ObjectId;
+    currentCourseId?: mongoose.Types.ObjectId;
+    currentBatch?: number;
+    graduationYear?: number;
+    currentHostelId?: mongoose.Types.ObjectId;
+    currentRoomNo?: number;
+    rollNoHistory: IRollNoHistory[];
+    hostelHistory: IHostelHistory[];
     status: "active" | "inactive" | "suspended";
     isOnboarded: boolean;
     tokenVersion: number;
+    accountType: "public" | "private";
+    privacySettings: {
+        hiddenFields: string[];
+    };
     incrementTokenVersion: () => Promise<void>;
 }
 
+const rollNoHistorySchema = new Schema<IRollNoHistory>(
+    {
+        rollNo: { type: String, required: true },
+        deptId: {
+            type: Schema.Types.ObjectId,
+            ref: "Department",
+            required: true,
+        },
+        courseId: {
+            type: Schema.Types.ObjectId,
+            ref: "Course",
+            required: true,
+        },
+        batch: { type: Number, required: true },
+    },
+    { _id: false }
+);
+
+const hostelHistorySchema = new Schema<IHostelHistory>(
+    {
+        hostelId: {
+            type: Schema.Types.ObjectId,
+            ref: "Hostel",
+            required: true,
+        },
+        roomNo: { type: Number, required: true },
+    },
+    { _id: false }
+);
+
+const linkSchema = new Schema<ILink>(
+    {
+        label: { type: String, required: true, trim: true },
+        url: { type: String, required: true, trim: true },
+    },
+    { _id: false }
+);
+
+const privacySettingsSchema = new Schema(
+    {
+        hiddenFields: {
+            type: [String],
+            default: ["roomNo"],
+        },
+    },
+    { _id: false }
+);
+
 const studentSchema = new mongoose.Schema<IStudent>(
     {
-        name: {
-            type: String,
-            required: true,
-        },
-        email: {
-            type: String,
-            required: true,
-            unique: true,
-        },
-        profilePicture: {
-            type: String,
-        },
+        fullName: { type: String, required: true },
+        email: { type: String, required: true, unique: true },
+        displayName: { type: String, trim: true },
         username: {
             type: String,
             unique: true,
-            sparse: true, // allows multiple null/undefined values
+            sparse: true,
+            trim: true,
+            lowercase: true,
         },
-
+        profilePhoto: { type: String },
+        coverPhoto: { type: String },
+        bio: { type: String, trim: true },
+        links: { type: [linkSchema], default: [] },
+        interests: { type: [String], default: [] },
+        skills: { type: [String], default: [] },
+        accountType: {
+            type: String,
+            enum: ["public", "private"],
+            default: "public",
+        },
+        privacySettings: { type: privacySettingsSchema, default: () => ({}) },
+        currentRollNo: { type: String },
+        currentDeptId: { type: Schema.Types.ObjectId, ref: "Department" },
+        currentCourseId: { type: Schema.Types.ObjectId, ref: "Course" },
+        currentBatch: { type: Number },
+        graduationYear: { type: Number },
+        currentHostelId: { type: Schema.Types.ObjectId, ref: "Hostel" },
+        currentRoomNo: { type: Number },
+        rollNoHistory: { type: [rollNoHistorySchema], default: [] },
+        hostelHistory: { type: [hostelHistorySchema], default: [] },
         status: {
             type: String,
             enum: ["active", "inactive", "suspended"],
             default: "active",
         },
-
-        isOnboarded: {
-            type: Boolean,
-            default: false,
-        },
-
+        isOnboarded: { type: Boolean, default: false },
         tokenVersion: { type: Number, default: 0 },
     },
-    {
-        timestamps: true,
-    }
+    { timestamps: true }
 );
 
 studentSchema.methods.incrementTokenVersion = async function () {
@@ -54,6 +144,15 @@ studentSchema.methods.incrementTokenVersion = async function () {
     await this.save();
 };
 
-const Student = mongoose.model("Student", studentSchema);
+studentSchema.pre("save", function () {
+    if (this.isModified("accountType")) {
+        const isPrivate = this.accountType === "private";
+        this.privacySettings.hiddenFields = isPrivate
+            ? ["rollNo", "hostel", "roomNo"]
+            : ["roomNo"];
+    }
+});
+
+const Student = mongoose.model<IStudent>("Student", studentSchema);
 
 export default Student;

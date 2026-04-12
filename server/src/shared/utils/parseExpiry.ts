@@ -25,4 +25,4 @@ const parseExpiry = (expiry: string): number => {
     return total;
 };
 
-export default parseExpiry;
+export { parseExpiry };

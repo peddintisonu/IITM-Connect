@@ -11,7 +11,9 @@ export const protectRoute = asyncHandler(async (req, res, next) => {
         studentId: string;
         tokenVersion: number;
     };
-    const student = await Student.findById(decoded.studentId).select("-__v");
+    const student = await Student.findById(decoded.studentId).select(
+        "-__v tokenVersion"
+    );
 
     if (!student) throw new ApiError(401, "Student not found");
 

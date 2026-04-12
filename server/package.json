@@ -8,7 +8,8 @@
 	"scripts": {
 		"dev": "cross-env NODE_ENV=development ts-node-dev --respawn --transpile-only src/server.ts",
 		"build": "tsc",
-		"start": "cross-env NODE_ENV=production node dist/server.js"
+		"start": "cross-env NODE_ENV=production node dist/server.js",
+		"seed": "ts-node src/seeds/index.ts"
 	},
 	"devDependencies": {
 		"@types/cookie-parser": "^1.4.10",

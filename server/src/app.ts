@@ -3,6 +3,9 @@ import express from "express";
 import passport from "./config/passport";
 
 import authRoutes from "./modules/auth/auth.routes";
+import socialRoutes from "./modules/social/social.routes";
+import studentRoutes from "./modules/student/student.routes";
+
 import errorHandler from "./shared/middleware/errorHandler";
 
 const app = express();
@@ -12,6 +15,8 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/student", studentRoutes);
+app.use("/api/v1/social", socialRoutes);
 
 app.get("/api/v1/health", (req, res) => {
     res.json({ status: "ok", message: "IITMConnect server is running" });
