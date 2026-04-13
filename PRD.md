@@ -6,7 +6,7 @@
 **Stack:** MERN + TypeScript  
 **Team:** 2 developers  
 **Start Date:** 11-04-2026  
-**Last Updated:** 2026
+**Last Updated:** 13-04-2026
 
 ---
 
@@ -119,22 +119,106 @@ status: active — badge appears on profile
 ### Master Data
 
 ```
-Hostels       { _id, name, code, type }
-Departments   { _id, name, code }
-Courses       { _id, name, duration }
+Hostels     { _id, name, code, type("boys" | "girls") }
+Departments { _id, name, code }
+Courses     { _id, name, code, abbreviation, duration(optional — null for PhD) }
 ```
+
+Seeded once by super admin. Never modified through the app.
+- 20 hostels — 15 boys, 5 girls
+- 18 departments
+- 10 courses — B.Tech, B.S., Dual Degree, M.Tech, M.A., Ph.D., M.S., M.Sc., MBA, BS Medical
+
+---
 
 ### Student
 
 ```
-Student                { _id, smailId, username, accountStatus, createdAt }
-StudentAcademicProfile { studentId, currentDeptId, currentCourseId, currentRollNo,
-                         batch, currentYear, rollNoHistory[] }
-StudentHostelProfile   { studentId, currentHostelId, currentRoomNo, hostelHistory[] }
-StudentSocialProfile   { studentId, displayName, bio, profilePhoto, coverPhoto,
-                         links[], interests[], skills[], privacy{} }
-Follow                 { followerId, followingId, followingType, followedAt }
+Student {
+  _id,
+  fullName,        — frozen from Google OAuth smail display name, never editable
+  email,           — smail, unique, used as login identity
+  displayName,     — set during onboarding, editable anytime
+  username,        — set during onboarding, unique, lowercase, social handle
+
+  profilePhoto,    — from Google OAuth at signup, replaceable
+  coverPhoto,      — set by student anytime
+  bio,
+  links[{ label, url }],
+  interests[],
+  skills[],
+
+  currentRollNo,       — full roll no e.g. "be24b056", parsed from smail at signup
+  currentDeptId,       — ref to Department, looked up by deptCode at signup
+  currentCourseId,     — ref to Course, looked up by courseCode at signup
+  currentBatch,        — full year e.g. 2024 (not 24), parsed from smail at signup
+  graduationYear,      — calculated: batch + course.duration, null for PhD
+
+  currentHostelId,     — ref to Hostel, set during onboarding
+  currentRoomNo,       — Number, set during onboarding
+
+  rollNoHistory[{ rollNo, deptId, courseId, batch }],
+    — appended on dept or course change, no dates tracked
+  hostelHistory[{ hostelId, roomNo }],
+    — appended on every hostel change, seeded with first entry at onboarding
+
+  accountType,         — "public" | "private", default "public"
+  privacySettings{
+    hiddenFields[]     — array of field names student chose to hide
+                       — public account default: ["roomNo"]
+                       — private account default: ["rollNo", "hostel", "roomNo"]
+                       — student can add or remove any field anytime
+  },
+
+  status,              — "active" | "inactive" | "suspended"
+  isOnboarded,         — false until onboarding form submitted
+  tokenVersion,        — incrementing, invalidates all sessions on logout-all
+  createdAt, updatedAt
+}
 ```
+
+**Notes:**
+- `currentYear` is not stored — calculated on the fly: `(currentCalendarYear - currentBatch) + 1`, resets after May each year
+- All current fields live at root for fast reads
+- History arrays exist only for edge case tracking — rare dept/course/hostel changes
+
+---
+
+### Follow
+
+```
+Follow {
+  _id,
+  followerId,      — ref to Student (always a student)
+  followingId,     — ref to Student or Org (dynamic via refPath)
+  followingType,   — "student" | "org"
+  status,          — "pending" | "accepted"
+  acceptedAt,
+  createdAt
+}
+— compound unique index on followerId + followingId
+— index on followingId + status for fast follower lookups
+— orgs cannot follow anyone — only students follow
+— org follows are always accepted immediately (orgs are always public)
+```
+
+---
+
+### Block
+
+```
+Block {
+  _id,
+  blockerId,   — ref to Student
+  blockedId,   — ref to Student
+  createdAt
+}
+— compound unique index on blockerId + blockedId
+— blocking auto removes all follows in both directions
+— unblocking does NOT restore follows — must re-follow manually
+```
+
+---
 
 ### Organisation
 
@@ -312,33 +396,77 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 8. **Event driven architecture** — new features plug in, nothing breaks
 9. **Tenure is its own entity** — not just dates on a POR
 10. **Separate what a person IS from HAS from DOES**
+11. **Follow is one directional by type** — students follow students or orgs, orgs never follow anyone
+12. **Privacy is two layer** — account level (public/private) sets defaults, hiddenFields[] allows per-field overrides
 
 ---
 
 ## 8. Auth
 
-| Step         | Detail                                        |
-| ------------ | --------------------------------------------- |
-| Signup       | Google OAuth — smail only                     |
-| Domain check | Must end with @smail.iitm.ac.in               |
-| Onboarding   | Name, roll no, dept, hostel, course, username |
-| Login        | Google OAuth — one tap, no password           |
+| Step         | Detail                                                      |
+| ------------ | ----------------------------------------------------------- |
+| Signup       | Google OAuth — smail only                                   |
+| Domain check | Must end with @smail.iitm.ac.in                             |
+| Prefill      | Roll no, dept, course, batch, graduationYear parsed at signup from smail |
+| Onboarding   | displayName, username, accountType, hostel, roomNo          |
+| Login        | Google OAuth — one tap, no password                         |
 | Session      | Access token (15m) + Refresh token (7d) in httpOnly cookies |
-| Username     | Social identity only, not used for login      |
+| Username     | Social identity only, not used for login                    |
+
+### OAuth Callback Flow
+
+```
+Google OAuth callback
+  → extract email from profile
+  → verify @smail.iitm.ac.in domain
+  → if student exists → issue tokens → done
+  → if new student →
+      parse smail prefix → deptCode, batch, courseCode, rollNo
+      lookup Department by deptCode → get deptId
+      lookup Course by courseCode → get courseId
+      clean fullName from Google display name (strip roll no suffix)
+      calculate graduationYear = batch + course.duration (null for PhD)
+      Student.create() with all prefilled data
+      issue tokens
+      redirect to onboarding
+```
+
+### Onboarding Flow
+
+```
+Student logs in first time → isOnboarded: false
+  → frontend redirects to /onboarding page
+  → student fills:
+      displayName   — required, editable display name
+      username      — required, unique, lowercase handle
+      accountType   — "public" | "private"
+      currentHostelId — optional (day scholars skip)
+      currentRoomNo   — optional, required if hostel selected
+  → PATCH /api/v1/student/onboarding
+  → privacySettings.hiddenFields seeded based on accountType
+      public  → ["roomNo"]
+      private → ["rollNo", "hostel", "roomNo"]
+  → hostelHistory[] seeded with first entry
+  → isOnboarded: true
+  → redirect to feed
+```
 
 ### Token Strategy
+
 - Access token — 15 minutes, JWT in httpOnly cookie
 - Refresh token — 7 days, JWT in httpOnly cookie, stored in Session collection
 - Refresh token rotation — old session deleted and new one issued on every refresh
 - tokenVersion on Student — incrementing invalidates all sessions at once (logout all devices)
 
 ### Session
+
 - One Session document per logged in device
 - Stores: userId, refreshToken, deviceInfo (browser + OS), expiresAt
 - TTL index on expiresAt — MongoDB auto deletes expired sessions
 - On re-login — existing session replaced if same device fingerprint
 
 ### Auth Routes
+
 | Method | Route | Protection | Description |
 |--------|-------|------------|-------------|
 | GET | /api/v1/auth/google | redirectIfAuthenticated | Triggers Google OAuth |
@@ -348,11 +476,75 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 | POST | /api/v1/auth/logout | protectRoute | Clears current session |
 | POST | /api/v1/auth/logout-all | protectRoute | Clears all sessions, increments tokenVersion |
 
+### Student Routes
+
+| Method | Route | Protection | Description |
+|--------|-------|------------|-------------|
+| PATCH | /api/v1/student/onboarding | protectRoute | Submits onboarding form |
+
 ### Middleware
+
 - protectRoute — verifies access token JWT + tokenVersion match
 - redirectIfAuthenticated — redirects logged in users away from /google
 
-## 9. Pages & Social
+---
+
+## 9. Follow & Block System
+
+### Follow Flow
+
+```
+Student A wants to follow Student B
+  → check block in both directions → fail silently if blocked
+  → check duplicate follow → fail if already following or pending
+  → if B accountType is "public" → create Follow, status: "accepted" immediately
+  → if B accountType is "private" → create Follow, status: "pending"
+        → B receives notification
+        → B accepts → status: "accepted", acceptedAt set
+        → B rejects → Follow document deleted
+
+Student A wants to follow Org
+  → check duplicate follow
+  → always status: "accepted" — orgs are always public
+```
+
+### Block Flow
+
+```
+Student A blocks Student B
+  → check self block → fail
+  → check duplicate block → fail if already blocked
+  → create Block document
+  → delete all Follow documents in both directions (A→B and B→A)
+
+Student A unblocks Student B
+  → delete Block document
+  → follows are NOT restored — B must re-follow manually if desired
+
+Block visibility rules
+  → A blocks B → B cannot view A's profile, cannot follow, cannot find in search
+  → Block check runs in both directions on every follow or profile view request
+```
+
+### Social Routes
+
+| Method | Route | Description |
+| ------ | ----- | ----------- |
+| POST | `/api/v1/social/follow/:followingId` | Send follow request |
+| DELETE | `/api/v1/social/follow/:followingId` | Unfollow |
+| POST | `/api/v1/social/follow/:followerId/accept` | Accept follow request |
+| POST | `/api/v1/social/follow/:followerId/reject` | Reject follow request |
+| DELETE | `/api/v1/social/follow/:followerId/remove` | Remove a follower |
+| GET | `/api/v1/social/follow/followers` | Get my followers |
+| GET | `/api/v1/social/follow/following` | Get my following |
+| GET | `/api/v1/social/follow/requests` | Get pending requests |
+| POST | `/api/v1/social/block/:blockedId` | Block a student |
+| DELETE | `/api/v1/social/block/:blockedId` | Unblock a student |
+| GET | `/api/v1/social/block` | Get my block list |
+
+---
+
+## 10. Pages & Social
 
 ### Page Types
 
@@ -372,7 +564,19 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 - Volunteering history
 - Events organised and participated
 - Posts
+- Fields filtered based on viewer's relationship and student's privacySettings
 - Exportable as PDF / shareable link
+
+### Profile Visibility Rules
+
+```
+Viewer is the student themselves → see everything
+Viewer is a follower → see everything except hiddenFields
+Viewer is not a follower →
+  public account  → see non-hidden fields
+  private account → see only displayName, username, profilePhoto
+Viewer is blocked → profile not accessible
+```
 
 ### Org Page Tabs
 
@@ -380,7 +584,7 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 
 ---
 
-## 10. Feed
+## 11. Feed
 
 | Section         | Content                                 |
 | --------------- | --------------------------------------- |
@@ -405,7 +609,7 @@ update, announcement, result, achievement, recruitment, poll, gallery
 
 ---
 
-## 11. Events
+## 12. Events
 
 ### Event Types
 
@@ -440,7 +644,7 @@ Guest accounts tied to specific fest. Public registration link. QR check-in. No 
 
 ---
 
-## 12. Polls
+## 13. Polls
 
 | Type            | Description            |
 | --------------- | ---------------------- |
@@ -456,7 +660,7 @@ Guest accounts tied to specific fest. Public registration link. QR check-in. No 
 
 ---
 
-## 13. Forums
+## 14. Forums
 
 Async topic-based discussion. Built on top of posts + comments system.
 
@@ -467,7 +671,7 @@ Async topic-based discussion. Built on top of posts + comments system.
 
 ---
 
-## 14. Complaints (Monitoring Committees)
+## 15. Complaints (Monitoring Committees)
 
 ```
 Student submits complaint
@@ -485,7 +689,7 @@ Full audit trail on every complaint
 
 ---
 
-## 15. Handover System
+## 16. Handover System
 
 When tenure ends:
 
@@ -497,7 +701,7 @@ When tenure ends:
 
 ---
 
-## 16. Admin Structure
+## 17. Admin Structure
 
 | Role                        | Responsibilities                                                    |
 | --------------------------- | ------------------------------------------------------------------- |
@@ -515,7 +719,7 @@ When tenure ends:
 
 ---
 
-## 17. Launch Plan
+## 18. Launch Plan
 
 ### Pre-Launch (Super Admin)
 
@@ -539,7 +743,7 @@ Soft launch → Student GS endorsement → Dean of Students → Institute adopti
 
 ---
 
-## 18. Tech Stack
+## 19. Tech Stack
 
 | Layer        | Technology                  | Hosting           |
 | ------------ | --------------------------- | ----------------- |
@@ -557,7 +761,7 @@ Soft launch → Student GS endorsement → Dean of Students → Institute adopti
 
 ---
 
-## 19. Project Structure
+## 20. Project Structure
 
 ### Monorepo with npm Workspaces
 
@@ -577,34 +781,42 @@ campusOS/
 
 ```
 server/src/
-├── config/          DB, passport, cloudinary, env
-├── modules/         feature modules (auth, student, org, por...)
+├── config/          db, passport, env
+├── modules/
+│   ├── auth/        auth routes, controller, service, session model
+│   ├── core/
+│   │   └── models/  hostel, department, course
+│   ├── student/     student model, service, controller, routes
+│   └── social/      follow model, block model, services, controllers, routes
+├── seeds/           index.ts, masterData.seed.ts
 ├── shared/
-│   ├── middleware/  auth, role, error
-│   ├── utils/       asyncHandler, apiResponse, apiError
-│   └── constants/   org types, por status etc.
-├── validations/     Zod schemas
+│   ├── middleware/  auth, error
+│   ├── utils/       asyncHandler, apiError, apiResponse, parseExpiry, parseRollNo
+│   └── constants/   masterData.constants.ts
+├── validations/     student.validation.ts
+├── types/           express.d.ts
 ├── jobs/            cron jobs (tenure expiry, reminders)
 ├── events/          event emitter + handlers
-├── types/           TypeScript interfaces
 ├── app.ts
 └── server.ts
 ```
 
 ---
 
-## 20. V1 — Build First
+## 21. V1 — Build First
 
 ### In Scope
 
 - smail Google OAuth + onboarding
 - Student profiles (academic, hostel, social)
+- Follow system with public/private account support
+- Block system
 - Flexible org creation with role builder
 - OrgRole, OrgRoleTemplate, OrgTenure
 - POR chain of trust verification
 - Handover notes system
 - Org pages (all types)
-- Student profile page + follow system
+- Student profile page with privacy filtering
 - Feed (pinned, happening now, following, campus wide)
 - Posts with image, likes, comments
 - Targeted announcements
@@ -634,7 +846,7 @@ server/src/
 
 ---
 
-## 21. V2 — After Adoption
+## 22. V2 — After Adoption
 
 - **DMs** — simple text first, async
 - **Group Chats** — official org groups only, real time
@@ -650,7 +862,7 @@ server/src/
 
 ---
 
-## 22. What Makes This Different
+## 23. What Makes This Different
 
 | Feature                   | WhatsApp | Instagram | Google Forms | CampusOS |
 | ------------------------- | -------- | --------- | ------------ | -------- |
@@ -665,7 +877,7 @@ server/src/
 
 ---
 
-## 23. Management Pitch — Key Points
+## 24. Management Pitch — Key Points
 
 > _"Every student's contribution to college life is invisible after they graduate. CampusOS makes PORs trackable, elections transparent, club communication structured, and gives every student a verified college identity."_
 
