@@ -6,6 +6,7 @@ import authRoutes from "./modules/auth/auth.routes";
 import socialRoutes from "./modules/social/social.routes";
 import studentRoutes from "./modules/student/student.routes";
 
+import { protectRoute } from "./shared/middleware/auth.middleware";
 import errorHandler from "./shared/middleware/errorHandler";
 
 const app = express();
@@ -13,6 +14,10 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
+
+app.get("/", protectRoute, (req, res) => {
+    res.send("Welcome to IITMConnect API");
+});
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/student", studentRoutes);

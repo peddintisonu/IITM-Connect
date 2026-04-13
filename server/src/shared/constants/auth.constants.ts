@@ -1,26 +1,28 @@
 import { ENV } from "../../config/env";
 
 export const tokenExpiry = {
-    accessToken: 15 * 60, // 15 minutes in seconds
-    refreshToken: 7 * 24 * 60 * 60, // 7 days in seconds
-};
-
-export const cookieOptions = {
-    httpOnly: true,
-    secure: ENV.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    accessToken: 15 * 60,
+    refreshToken: 7 * 24 * 60 * 60,
 };
 
 export const accessCookieOptions = {
     httpOnly: true,
     secure: ENV.NODE_ENV === "production",
-    sameSite: "strict" as const,
-    maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
+    sameSite: "lax" as const,
+    maxAge: 15 * 60 * 1000,
+    path: "/",
 };
 
 export const refreshCookieOptions = {
     httpOnly: true,
     secure: ENV.NODE_ENV === "production",
-    sameSite: "strict" as const,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    sameSite: "lax" as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+};
+
+export const cookieOptions = {
+    httpOnly: true,
+    secure: ENV.NODE_ENV === "production",
+    sameSite: "lax" as const,
 };

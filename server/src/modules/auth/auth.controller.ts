@@ -4,20 +4,26 @@ import {
     accessCookieOptions,
     refreshCookieOptions,
 } from "../../shared/constants/auth.constants";
-import { ApiResponse } from "../../shared/utils";
 import { ApiError } from "../../shared/utils/ApiError";
+import { ApiResponse } from "../../shared/utils/ApiResponse";
 import { asyncHandler } from "../../shared/utils/asyncHandler";
-import Session from "../student/session.model";
 import { IStudent } from "../student/student.model";
-import { generateTokens, refreshAccessToken } from "./auth.service";
+import {
+    generateTokens,
+    logoutAll as logoutAllSessions,
+    logoutOne,
+    refreshAccessToken,
+} from "./auth.service";
+
+const clearAuthCookies = (res: Response) => {
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+};
 
 export const googleCallback = asyncHandler(
     async (req: Request, res: Response) => {
         const student = req.user as IStudent;
-
-        if (!student) {
-            throw new ApiError(401, "Authentication failed");
-        }
+        if (!student) throw new ApiError(401, "Authentication failed");
 
         const parser = new UAParser(req.headers["user-agent"]);
         const result = parser.getResult();
@@ -37,9 +43,7 @@ export const googleCallback = asyncHandler(
 export const getCurrentUser = asyncHandler(
     async (req: Request, res: Response) => {
         const student = req.user as IStudent;
-        if (!student) {
-            throw new ApiError(401, "Unauthorized");
-        }
+        if (!student) throw new ApiError(401, "Unauthorized");
 
         res.json(
             new ApiResponse(200, student, "Current user retrieved successfully")
@@ -49,35 +53,24 @@ export const getCurrentUser = asyncHandler(
 
 export const refreshToken = asyncHandler(
     async (req: Request, res: Response) => {
-        const refreshToken = req.cookies.refreshToken;
-        if (!refreshToken) {
-            throw new ApiError(401, "No refresh token provided");
-        }
+        const token = req.cookies.refreshToken;
+        if (!token) throw new ApiError(401, "No refresh token provided");
 
         const { accessToken, refreshToken: newRefreshToken } =
-            await refreshAccessToken(refreshToken);
+            await refreshAccessToken(token);
+
         res.cookie("accessToken", accessToken, accessCookieOptions)
             .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
-            .json(
-                new ApiResponse(
-                    200,
-                    { accessToken },
-                    "Access token refreshed successfully"
-                )
-            );
+            .json(new ApiResponse(200, null, "Token refreshed successfully"));
     }
 );
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-    const refreshToken = req.cookies.refreshToken;
-    const session = await Session.findOneAndDelete({ refreshToken });
+    const token = req.cookies.refreshToken;
+    if (!token) throw new ApiError(401, "No refresh token provided");
 
-    if (!session) {
-        throw new ApiError(400, "Invalid refresh token provided");
-    }
-
-    res.clearCookie("refreshToken");
-    res.clearCookie("accessToken");
+    await logoutOne(token);
+    clearAuthCookies(res);
 
     res.json(new ApiResponse(200, null, "Logged out successfully"));
 });
@@ -85,11 +78,10 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
     const student = req.user as IStudent;
 
-    await Session.deleteMany({ userId: student._id });
-    res.clearCookie("refreshToken");
-    res.clearCookie("accessToken");
-
+    await logoutAllSessions(student._id.toString());
     await student.incrementTokenVersion();
+    clearAuthCookies(res);
+
     res.json(
         new ApiResponse(200, null, "Logged out of all devices successfully")
     );
