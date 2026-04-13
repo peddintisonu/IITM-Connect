@@ -403,89 +403,93 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 
 ## 8. Auth
 
-| Step         | Detail                                                      |
-| ------------ | ----------------------------------------------------------- |
-| Signup       | Google OAuth — smail only                                   |
-| Domain check | Must end with @smail.iitm.ac.in                             |
-| Prefill      | Roll no, dept, course, batch, graduationYear parsed at signup from smail |
-| Onboarding   | displayName, username, accountType, hostel, roomNo          |
-| Login        | Google OAuth — one tap, no password                         |
-| Session      | Access token (15m) + Refresh token (7d) in httpOnly cookies |
-| Username     | Social identity only, not used for login                    |
+| Step | Detail |
+| :--- | :--- |
+| **Signup** | Google OAuth — smail only |
+| **Domain check** | Must end with `@smail.iitm.ac.in` |
+| **Prefill** | Roll no, dept, course, batch, graduationYear parsed at signup from smail |
+| **Onboarding** | displayName, username, accountType, hostel, roomNo |
+| **Login** | Google OAuth — one tap, no password |
+| **Session** | Access token (15m) + Refresh token (7d) in httpOnly cookies |
+| **Username** | Social identity only, not used for login |
 
 ### OAuth Callback Flow
 
-```
-Google OAuth callback
-  → extract email from profile
-  → verify @smail.iitm.ac.in domain
-  → if student exists → issue tokens → done
-  → if new student →
-      parse smail prefix → deptCode, batch, courseCode, rollNo
-      lookup Department by deptCode → get deptId
-      lookup Course by courseCode → get courseId
-      clean fullName from Google display name (strip roll no suffix)
-      calculate graduationYear = batch + course.duration (null for PhD)
-      Student.create() with all prefilled data
-      issue tokens
-      redirect to onboarding
-```
+1. **Google OAuth callback**
+2. Extract email from profile.
+3. Verify `@smail.iitm.ac.in` domain — **reject immediately** if not smail.
+4. **If student exists:** Issue tokens → Done.
+5. **If new student:**
+   * Parse smail prefix → `deptCode`, `batch`, `courseCode`, `rollNo`.
+   * Lookup **Department** by `deptCode` → get `deptId`.
+   * Lookup **Course** by `courseCode` → get `courseId`.
+   * Clean `fullName` from Google display name (strip roll no suffix).
+   * Calculate `graduationYear` = `batch` + `course.duration` (null for PhD).
+   * `Student.create()` with all prefilled data.
+   * Issue tokens & redirect to onboarding.
 
 ### Onboarding Flow
 
-```
-Student logs in first time → isOnboarded: false
-  → frontend redirects to /onboarding page
-  → student fills:
-      displayName   — required, editable display name
-      username      — required, unique, lowercase handle
-      accountType   — "public" | "private"
-      currentHostelId — optional (day scholars skip)
-      currentRoomNo   — optional, required if hostel selected
-  → PATCH /api/v1/student/onboarding
-  → privacySettings.hiddenFields seeded based on accountType
-      public  → ["roomNo"]
-      private → ["rollNo", "hostel", "roomNo"]
-  → hostelHistory[] seeded with first entry
-  → isOnboarded: true
-  → redirect to feed
-```
+* **Trigger:** Student logs in first time → `isOnboarded: false`.
+* **Frontend:** Redirects to `/onboarding` page.
+* **Fields:**
+  * `displayName`: Required, editable display name.
+  * `username`: Required, unique, lowercase handle.
+  * `accountType`: `"public"` | `"private"`.
+  * `currentHostelId`: Optional (day scholars skip).
+  * `currentRoomNo`: Optional, required if hostel selected.
+* **Backend:** `PATCH /api/v1/student/onboarding`
+  * `privacySettings.hiddenFields` seeded based on `accountType`:
+    * **Public:** `["roomNo"]`
+    * **Private:** `["rollNo", "hostel", "roomNo"]`
+  * `hostelHistory[]` seeded with first entry.
+  * `isOnboarded: true`.
+  * Redirect to feed.
 
 ### Token Strategy
 
-- Access token — 15 minutes, JWT in httpOnly cookie
-- Refresh token — 7 days, JWT in httpOnly cookie, stored in Session collection
-- Refresh token rotation — old session deleted and new one issued on every refresh
-- tokenVersion on Student — incrementing invalidates all sessions at once (logout all devices)
+* **Access token:** 15 minutes, JWT (HS256) in `httpOnly` cookie.
+* **Refresh token:** 7 days, JWT in `httpOnly` cookie, hashed with SHA-256 before storing in DB.
+* **`sessionId`:** Embedded in JWT payload — direct link between access token and session.
+* **`tokenVersion`:** Embedded in JWT payload — checked on every request against DB value.
+* **Refresh token rotation:** Old session deleted, new session created on every refresh.
+* **Token invalidation:** Incrementing `tokenVersion` on Student instantly invalidates all sessions.
 
-### Session
+### Session Management
 
-- One Session document per logged in device
-- Stores: userId, refreshToken, deviceInfo (browser + OS), expiresAt
-- TTL index on expiresAt — MongoDB auto deletes expired sessions
-- On re-login — existing session replaced if same device fingerprint
+* **Storage:** One Session document per logged-in device.
+* **Schema:** `userId`, `refreshToken` (hashed), `deviceInfo` (browser + OS via `ua-parser-js`), `expiresAt`, `sessionId`.
+* **Cleanup:** TTL index on `expiresAt` for auto-deletion.
+* **Optimization:** `protectRoute` fetches student + session in parallel via `Promise.all`.
 
-### Auth Routes
+### Auth Service Logic
 
+* **`generateTokens(student, deviceInfo)`:** Creates session document, signs both tokens with `sessionId` + `tokenVersion`, hashes refresh token before saving.
+* **`refreshAccessToken(refreshToken)`:** Verifies JWT, finds session, compares hash, rotates session, checks `tokenVersion`.
+* **`logoutOne(refreshToken)`:** Verifies JWT, deletes session by `sessionId`.
+* **`logoutAll(studentId)`:** Deletes all sessions for student, increments `tokenVersion`.
+
+### API Routes
+
+#### Auth Routes
 | Method | Route | Protection | Description |
-|--------|-------|------------|-------------|
-| GET | /api/v1/auth/google | redirectIfAuthenticated | Triggers Google OAuth |
-| GET | /api/v1/auth/google/callback | — | Google redirect, issues tokens |
-| GET | /api/v1/auth/me | protectRoute | Returns current student |
-| POST | /api/v1/auth/refresh | — | Rotates tokens |
-| POST | /api/v1/auth/logout | protectRoute | Clears current session |
-| POST | /api/v1/auth/logout-all | protectRoute | Clears all sessions, increments tokenVersion |
+| :--- | :--- | :--- | :--- |
+| GET | `/api/v1/auth/google` | `redirectIfAuthenticated` | Triggers Google OAuth |
+| GET | `/api/v1/auth/google/callback` | — | Google redirect, issues tokens |
+| GET | `/api/v1/auth/me` | `protectRoute` | Returns current student |
+| POST | `/api/v1/auth/refresh` | — | Rotates tokens |
+| POST | `/api/v1/auth/logout` | `protectRoute` | Clears current session |
+| POST | `/api/v1/auth/logout-all` | `protectRoute` | Clears all sessions & increments version |
 
-### Student Routes
-
+#### Student Routes
 | Method | Route | Protection | Description |
-|--------|-------|------------|-------------|
-| PATCH | /api/v1/student/onboarding | protectRoute | Submits onboarding form |
+| :--- | :--- | :--- | :--- |
+| PATCH | `/api/v1/student/onboarding` | `protectRoute` | Submits onboarding form |
 
 ### Middleware
 
-- protectRoute — verifies access token JWT + tokenVersion match
-- redirectIfAuthenticated — redirects logged in users away from /google
+* **`protectRoute`:** Verifies JWT, checks `tokenVersion` against DB, verifies session exists.
+* **`redirectIfAuthenticated`:** Checks auth state before allowing access to `/google`, prevents duplicate sessions.
 
 ---
 
@@ -893,3 +897,4 @@ server/src/
 ---
 
 _Document will be updated as development progresses._
+

@@ -1,6 +1,6 @@
 # File Tree: IITM Connect
 
-**Generated:** 4/13/2026, 3:29:09 AM
+**Generated:** 4/13/2026, 12:12:40 PM
 **Root Path:** `d:\Projects\Web-Projects\IITM Connect`
 
 ```
@@ -20,7 +20,8 @@
 │   │   │   ├── 📁 auth
 │   │   │   │   ├── 📄 auth.controller.ts
 │   │   │   │   ├── 📄 auth.routes.ts
-│   │   │   │   └── 📄 auth.service.ts
+│   │   │   │   ├── 📄 auth.service.ts
+│   │   │   │   └── 📄 session.model.ts
 │   │   │   ├── 📁 core
 │   │   │   │   └── 📁 models
 │   │   │   │       ├── 📄 course.model.ts
@@ -35,7 +36,6 @@
 │   │   │   │   ├── 📄 follow.service.ts
 │   │   │   │   └── 📄 social.routes.ts
 │   │   │   ├── 📁 student
-│   │   │   │   ├── 📄 session.model.ts
 │   │   │   │   ├── 📄 student.controller.ts
 │   │   │   │   ├── 📄 student.model.ts
 │   │   │   │   ├── 📄 student.routes.ts

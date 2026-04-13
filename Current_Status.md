@@ -17,13 +17,17 @@
 - MongoDB Atlas connected via mongoose with separate `DB_NAME`
 - Passport Google OAuth strategy with smail domain check (`@smail.iitm.ac.in`)
 - Student model with `tokenVersion` for session invalidation
-- Session model with TTL index and device info
+- Session model with TTL index, device info, hashed refresh token storage
 - JWT auth — access token (15m) + refresh token (7d) in httpOnly cookies
-- Refresh token rotation — old session deleted on every refresh
+- `sessionId` embedded in JWT payload — direct link between token and session
+- Refresh token rotation — old session deleted, new session created on every refresh
+- Refresh token hashed with SHA-256 before storing in DB — safe against DB compromise
 - `asyncHandler`, `ApiError`, `ApiResponse`, `parseExpiry` utilities
 - `errorHandler` middleware — centralized error formatting
-- `protectRoute` middleware — verifies JWT + tokenVersion
+- `protectRoute` middleware — verifies JWT + tokenVersion + session existence in parallel
 - `redirectIfAuthenticated` middleware — prevents duplicate sessions on re-login
+- `clearAuthCookies` helper — DRY cookie clearing across logout controllers
+- Auth service — `generateTokens`, `refreshAccessToken`, `logoutOne`, `logoutAll`
 - Auth routes
   - `GET  /api/v1/auth/google` — triggers Google OAuth
   - `GET  /api/v1/auth/google/callback` — Google redirect, issues tokens
@@ -32,6 +36,7 @@
   - `POST /api/v1/auth/logout` — clears current session
   - `POST /api/v1/auth/logout-all` — clears all sessions, increments tokenVersion
 - Express type augmentation for `req.user` as `IStudent`
+- `session.model.ts` moved to `modules/auth/`
 
 ---
 
@@ -153,7 +158,18 @@
 
 ---
 
+## 🔜 Security Improvements (Pre-Launch)
+
+- Rate limiting on auth routes — prevent brute force on `/google` and `/refresh`
+- Asymmetric keys (RS256) — replace shared JWT secret with private/public key pair
+- Sliding session expiry — reset 7 day clock on active use
+- Redis for session storage — faster auth middleware at scale
+- Device info updation
+
+---
+
 ## ⏳ Next Up
 
 - Student profile endpoints — `GET /api/v1/student/:username`, `PATCH /api/v1/student/profile`
 - Org module — Organisation, OrgRole, OrgRoleTemplate, OrgTenure, POR system
+
