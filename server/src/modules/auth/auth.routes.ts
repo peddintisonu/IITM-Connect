@@ -6,7 +6,6 @@ import {
 } from "../../shared/middleware/auth.middleware";
 import { ApiResponse } from "../../shared/utils";
 import {
-    getCurrentUser,
     googleCallback,
     logout,
     logoutAll,
@@ -39,8 +38,6 @@ router.get("/failure", (req, res) => {
         )
     );
 });
-
-router.get("/me", protectRoute, getCurrentUser);
 
 router.post("/refresh", refreshToken);
 

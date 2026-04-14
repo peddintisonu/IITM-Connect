@@ -20,7 +20,7 @@ app.get("/", protectRoute, (req, res) => {
 });
 
 app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/student", studentRoutes);
+app.use("/api/v1/students", studentRoutes);
 app.use("/api/v1/social", socialRoutes);
 
 app.get("/api/v1/health", (req, res) => {

@@ -17,6 +17,9 @@ const schema = z.object({
     REFRESH_TOKEN_SECRET: z.string(),
     ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
     REFRESH_TOKEN_EXPIRES_IN: z.string().default("7d"),
+    CLOUDINARY_CLOUD_NAME: z.string(),
+    CLOUDINARY_API_KEY: z.string(),
+    CLOUDINARY_API_SECRET: z.string(),
 });
 
 const parsed = schema.safeParse(process.env);

@@ -40,17 +40,6 @@ export const googleCallback = asyncHandler(
     }
 );
 
-export const getCurrentUser = asyncHandler(
-    async (req: Request, res: Response) => {
-        const student = req.user as IStudent;
-        if (!student) throw new ApiError(401, "Unauthorized");
-
-        res.json(
-            new ApiResponse(200, student, "Current user retrieved successfully")
-        );
-    }
-);
-
 export const refreshToken = asyncHandler(
     async (req: Request, res: Response) => {
         const token = req.cookies.refreshToken;

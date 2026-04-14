@@ -1,17 +1,37 @@
-// createStudentFromOAuth(email, displayName, photoUrl)
-//   → parseRollNo(email)
-//   → lookup dept by deptCode
-//   → lookup course by courseCode
-//   → handle nulls (dept/course not found)
-//   → Student.create(...)
-//   → return student
+// server/src/modules/student/student.service.ts
 
 import mongoose from "mongoose";
+import {
+    deleteFromCloudinary,
+    uploadToCloudinary,
+} from "../../lib/cloudinaryUpload";
+import { UPLOAD_LIMITS } from "../../shared/constants/upload.constants";
 import { ApiError, cleanFullName, parseRollNo } from "../../shared/utils";
-import { OnboardingInput } from "../../validations/student.validation";
+import {
+    OnboardingInput,
+    UpdateHostelInput,
+    UpdatePrivacyInput,
+    UpdateProfileInput,
+} from "../../validations/student.validation";
 import { Course } from "../core/models/course.model";
 import { Department } from "../core/models/department.model";
-import Student, { IStudent } from "./student.model";
+import { Block } from "../social/block.model";
+import { Follow } from "../social/follow.model";
+import Student from "./student.model";
+import {
+    STUDENT_PUBLIC_SELECT,
+    STUDENT_SELF_SELECT,
+} from "../../shared/constants/students.constants";
+
+const hiddenFieldMap: Record<string, string> = {
+    rollNo: "currentRollNo",
+    hostel: "currentHostelId",
+    roomNo: "currentRoomNo",
+    batch: "currentBatch",
+    graduationYear: "graduationYear",
+    dept: "currentDeptId",
+    course: "currentCourseId",
+};
 
 export const createStudentFromOAuth = async (
     email: string,
@@ -51,18 +71,12 @@ export const onboardStudent = async (
 ) => {
     const student = await Student.findById(studentId);
 
-    if (!student) {
-        throw new ApiError(404, "Student not found");
-    }
-
-    if (student.isOnboarded) {
+    if (!student) throw new ApiError(404, "Student not found");
+    if (student.isOnboarded)
         throw new ApiError(400, "Student already onboarded");
-    }
 
     const existingUsername = await Student.findOne({ username: data.username });
-    if (existingUsername) {
-        throw new ApiError(400, "Username already taken");
-    }
+    if (existingUsername) throw new ApiError(409, "Username already taken");
 
     if (data.currentHostelId && !data.currentRoomNo) {
         throw new ApiError(
@@ -70,7 +84,6 @@ export const onboardStudent = async (
             "Room number is required if hostel is selected"
         );
     }
-
     if (data.currentRoomNo && !data.currentHostelId) {
         throw new ApiError(
             400,
@@ -78,19 +91,17 @@ export const onboardStudent = async (
         );
     }
 
-    const updateData: Partial<IStudent> = {
-        displayName: data.displayName,
-        username: data.username,
-        accountType: data.accountType,
-        isOnboarded: true,
-    };
+    student.displayName = data.displayName;
+    student.username = data.username;
+    student.accountType = data.accountType;
+    student.isOnboarded = true;
 
     if (data.currentHostelId) {
-        updateData.currentHostelId = new mongoose.Types.ObjectId(
+        student.currentHostelId = new mongoose.Types.ObjectId(
             data.currentHostelId
         );
-        updateData.currentRoomNo = data.currentRoomNo;
-        updateData.hostelHistory = [
+        student.currentRoomNo = data.currentRoomNo;
+        student.hostelHistory = [
             {
                 hostelId: new mongoose.Types.ObjectId(data.currentHostelId),
                 roomNo: data.currentRoomNo!,
@@ -98,11 +109,215 @@ export const onboardStudent = async (
         ];
     }
 
-    const updatedStudent = await Student.findByIdAndUpdate(
+    await student.save();
+
+    return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
+};
+
+export const editStudentProfile = async (
+    studentId: string,
+    data: UpdateProfileInput
+) => {
+    if (data.username) {
+        const existing = await Student.findOne({ username: data.username });
+        if (existing && existing._id.toString() !== studentId) {
+            throw new ApiError(409, "Username already taken");
+        }
+    }
+
+    const allowedFields = [
+        "displayName",
+        "username",
+        "bio",
+        "links",
+        "interests",
+        "skills",
+    ];
+
+    const updateData: Record<string, unknown> = {};
+    for (const key of allowedFields) {
+        if (data[key as keyof UpdateProfileInput] !== undefined) {
+            updateData[key] = data[key as keyof UpdateProfileInput];
+        }
+    }
+
+    const updated = await Student.findByIdAndUpdate(
         studentId,
         { $set: updateData },
-        { new: true }
-    ).select("-__v -createdAt -updatedAt");
+        { returnDocument: "after" }
+    ).select(STUDENT_SELF_SELECT);
+
+    if (!updated) throw new ApiError(404, "Student not found");
+
+    return updated;
+};
+
+export const changeStudentHostel = async (
+    studentId: string,
+    data: UpdateHostelInput
+) => {
+    const student = await Student.findById(studentId);
+    if (!student) throw new ApiError(404, "Student not found");
+
+    const updatedStudent = await Student.findByIdAndUpdate(
+        studentId,
+        {
+            $set: {
+                currentHostelId: new mongoose.Types.ObjectId(
+                    data.currentHostelId
+                ),
+                currentRoomNo: data.currentRoomNo,
+            },
+            $push: {
+                hostelHistory: {
+                    hostelId: new mongoose.Types.ObjectId(data.currentHostelId),
+                    roomNo: data.currentRoomNo,
+                },
+            },
+        },
+        { returnDocument: "after" }
+    ).select(STUDENT_SELF_SELECT);
 
     return updatedStudent;
+};
+
+export const editPrivacySettings = async (
+    studentId: string,
+    data: UpdatePrivacyInput
+) => {
+    const student = await Student.findById(studentId);
+    if (!student) throw new ApiError(404, "Student not found");
+
+    if (data.accountType) {
+        student.accountType = data.accountType;
+    }
+
+    if (data.hiddenFields) {
+        student.privacySettings.hiddenFields = data.hiddenFields;
+    }
+
+    await student.save();
+
+    return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
+};
+
+export const getStudentByUsername = async (
+    username: string,
+    viewerId: string
+) => {
+    const target = await Student.findOne({ username }).select(
+        STUDENT_PUBLIC_SELECT
+    );
+    if (!target) throw new ApiError(404, "Student not found");
+
+    const targetId = target._id.toString();
+
+    // viewer is the student themselves — return everything
+    if (targetId === viewerId) {
+        return await Student.findById(targetId).select(STUDENT_SELF_SELECT);
+    }
+
+    // check blocks in both directions
+    const block = await Block.findOne({
+        $or: [
+            { blockerId: viewerId, blockedId: targetId },
+            { blockerId: targetId, blockedId: viewerId },
+        ],
+    });
+    if (block) throw new ApiError(404, "Student not found");
+
+    // check if viewer follows target
+    const follow = await Follow.findOne({
+        followerId: viewerId,
+        followingId: targetId,
+        status: "accepted",
+    });
+
+    const isFollower = !!follow;
+
+    // private account, not a follower — return minimal profile
+    if (target.accountType === "private" && !isFollower) {
+        return {
+            _id: target._id,
+            displayName: target.displayName,
+            username: target.username,
+            profilePhoto: target.profilePhoto,
+            accountType: target.accountType,
+            isPrivate: true,
+        };
+    }
+
+    // follower or public account — strip hidden fields
+    const studentObj = target.toObject();
+    for (const field of target.privacySettings.hiddenFields) {
+        const actualField = hiddenFieldMap[field];
+        if (actualField)
+            delete studentObj[actualField as keyof typeof studentObj];
+    }
+
+    return studentObj;
+};
+
+export const uploadStudentProfilePhoto = async (
+    studentId: string,
+    fileBuffer: Buffer,
+    mimeType: string
+) => {
+    if (fileBuffer.length > UPLOAD_LIMITS.profilePhoto.maxSizeBytes) {
+        throw new ApiError(
+            400,
+            `Profile photo must be under ${UPLOAD_LIMITS.profilePhoto.maxSizeMb}MB`
+        );
+    }
+
+    const student = await Student.findById(studentId);
+    if (!student) throw new ApiError(404, "Student not found");
+
+    if (student.profilePhotoPublicId) {
+        await deleteFromCloudinary(student.profilePhotoPublicId);
+    }
+
+    const result = await uploadToCloudinary(
+        fileBuffer,
+        UPLOAD_LIMITS.profilePhoto.folder,
+        `profile_${studentId}`
+    );
+
+    student.profilePhoto = result.secure_url;
+    student.profilePhotoPublicId = result.public_id;
+    await student.save();
+
+    return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
+};
+
+export const uploadStudentCoverPhoto = async (
+    studentId: string,
+    fileBuffer: Buffer,
+    mimeType: string
+) => {
+    if (fileBuffer.length > UPLOAD_LIMITS.coverPhoto.maxSizeBytes) {
+        throw new ApiError(
+            400,
+            `Cover photo must be under ${UPLOAD_LIMITS.coverPhoto.maxSizeMb}MB`
+        );
+    }
+
+    const student = await Student.findById(studentId);
+    if (!student) throw new ApiError(404, "Student not found");
+
+    if (student.coverPhotoPublicId) {
+        await deleteFromCloudinary(student.coverPhotoPublicId);
+    }
+
+    const result = await uploadToCloudinary(
+        fileBuffer,
+        UPLOAD_LIMITS.coverPhoto.folder,
+        `cover_${studentId}`
+    );
+
+    student.coverPhoto = result.secure_url;
+    student.coverPhotoPublicId = result.public_id;
+    await student.save();
+
+    return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
 };

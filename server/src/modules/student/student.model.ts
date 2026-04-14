@@ -24,6 +24,8 @@ export interface IStudent extends mongoose.Document {
     username?: string;
     profilePhoto?: string;
     coverPhoto?: string;
+    profilePhotoPublicId?: string;
+    coverPhotoPublicId?: string;
     bio?: string;
     links: ILink[];
     interests: string[];
@@ -109,6 +111,8 @@ const studentSchema = new mongoose.Schema<IStudent>(
         },
         profilePhoto: { type: String },
         coverPhoto: { type: String },
+        profilePhotoPublicId: { type: String },
+        coverPhotoPublicId: { type: String },
         bio: { type: String, trim: true },
         links: { type: [linkSchema], default: [] },
         interests: { type: [String], default: [] },

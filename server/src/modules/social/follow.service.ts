@@ -2,9 +2,9 @@
 
 import mongoose from "mongoose";
 import { ApiError } from "../../shared/utils";
-import { Follow } from "./follow.model";
-import { Block } from "./block.model";
 import Student from "../student/student.model";
+import { Block } from "./block.model";
+import { Follow } from "./follow.model";
 
 export const sendFollowRequest = async (
     followerId: mongoose.Types.ObjectId,
@@ -61,7 +61,7 @@ export const acceptFollowRequest = async (
     const follow = await Follow.findOneAndUpdate(
         { followerId, followingId: studentId, status: "pending" },
         { status: "accepted", acceptedAt: new Date() },
-        { new: true }
+        { returnDocument: "after" }
     );
 
     if (!follow) {
