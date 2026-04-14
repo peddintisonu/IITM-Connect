@@ -1,4 +1,5 @@
 // server/src/shared/utils/ApiError.ts
+
 class ApiError extends Error {
     statusCode: number;
     errors: string[];

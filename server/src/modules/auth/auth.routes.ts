@@ -39,7 +39,7 @@ router.get("/failure", (req, res) => {
     );
 });
 
-router.post("/refresh", refreshToken);
+router.get("/refresh", refreshToken);
 
 router.get("/logout", protectRoute, logout);
 router.get("/logout-all", protectRoute, logoutAll);

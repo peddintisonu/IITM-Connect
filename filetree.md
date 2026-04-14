@@ -1,6 +1,6 @@
 # File Tree: IITM Connect
 
-**Generated:** 4/13/2026, 12:12:40 PM
+**Generated:** 4/15/2026, 12:30:02 AM
 **Root Path:** `d:\Projects\Web-Projects\IITM Connect`
 
 ```
@@ -9,18 +9,23 @@
 ├── 📁 server
 │   ├── 📁 src
 │   │   ├── 📁 config
+│   │   │   ├── 📄 cloudinary.ts
 │   │   │   ├── 📄 db.ts
 │   │   │   ├── 📄 env.ts
-│   │   │   └── 📄 passport.ts
+│   │   │   ├── 📄 passport.ts
+│   │   │   └── 📄 swagger.ts
 │   │   ├── 📁 events
 │   │   │   └── ⚙️ .gitkeep
 │   │   ├── 📁 jobs
 │   │   │   └── ⚙️ .gitkeep
+│   │   ├── 📁 lib
+│   │   │   └── 📄 cloudinaryUpload.ts
 │   │   ├── 📁 modules
 │   │   │   ├── 📁 auth
 │   │   │   │   ├── 📄 auth.controller.ts
 │   │   │   │   ├── 📄 auth.routes.ts
 │   │   │   │   ├── 📄 auth.service.ts
+│   │   │   │   ├── 📄 auth.swagger.ts
 │   │   │   │   └── 📄 session.model.ts
 │   │   │   ├── 📁 core
 │   │   │   │   └── 📁 models
@@ -31,27 +36,33 @@
 │   │   │   │   ├── 📄 block.controller.ts
 │   │   │   │   ├── 📄 block.model.ts
 │   │   │   │   ├── 📄 block.service.ts
+│   │   │   │   ├── 📄 block.swagger.ts
 │   │   │   │   ├── 📄 follow.controller.ts
 │   │   │   │   ├── 📄 follow.model.ts
 │   │   │   │   ├── 📄 follow.service.ts
+│   │   │   │   ├── 📄 follow.swagger.ts
 │   │   │   │   └── 📄 social.routes.ts
-│   │   │   ├── 📁 student
-│   │   │   │   ├── 📄 student.controller.ts
-│   │   │   │   ├── 📄 student.model.ts
-│   │   │   │   ├── 📄 student.routes.ts
-│   │   │   │   └── 📄 student.service.ts
-│   │   │   └── ⚙️ .gitkeep
+│   │   │   └── 📁 student
+│   │   │       ├── 📄 student.controller.ts
+│   │   │       ├── 📄 student.model.ts
+│   │   │       ├── 📄 student.routes.ts
+│   │   │       ├── 📄 student.service.ts
+│   │   │       └── 📄 student.swagger.ts
 │   │   ├── 📁 seeds
 │   │   │   ├── 📄 index.ts
 │   │   │   └── 📄 masterData.seed.ts
 │   │   ├── 📁 shared
 │   │   │   ├── 📁 constants
 │   │   │   │   ├── 📄 auth.constants.ts
-│   │   │   │   └── 📄 masterData.constants.ts
+│   │   │   │   ├── 📄 masterData.constants.ts
+│   │   │   │   ├── 📄 students.constants.ts
+│   │   │   │   └── 📄 upload.constants.ts
+│   │   │   ├── 📁 docs
+│   │   │   │   └── 📄 base.swagger.ts
 │   │   │   ├── 📁 middleware
-│   │   │   │   ├── ⚙️ .gitkeep
 │   │   │   │   ├── 📄 auth.middleware.ts
-│   │   │   │   └── 📄 errorHandler.ts
+│   │   │   │   ├── 📄 errorHandler.ts
+│   │   │   │   └── 📄 upload.middleware.ts
 │   │   │   └── 📁 utils
 │   │   │       ├── 📄 ApiError.ts
 │   │   │       ├── 📄 ApiResponse.ts
@@ -63,7 +74,6 @@
 │   │   │   ├── ⚙️ .gitkeep
 │   │   │   └── 📄 express.d.ts
 │   │   ├── 📁 validations
-│   │   │   ├── ⚙️ .gitkeep
 │   │   │   └── 📄 student.validation.ts
 │   │   ├── 📄 app.ts
 │   │   └── 📄 server.ts
@@ -78,6 +88,7 @@
 ├── 📝 PRD.md
 ├── 📝 README.md
 ├── 📄 eslint.config.mjs
+├── 📝 filetree.md
 ├── ⚙️ package-lock.json
 ├── ⚙️ package.json
 └── ⚙️ tsconfig.base.json

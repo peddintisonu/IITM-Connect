@@ -1,16 +1,16 @@
 // server/src/modules/social/follow.controller.ts
 
 import mongoose from "mongoose";
-import { ApiResponse, asyncHandler } from "../../shared/utils";
+import { ApiError, ApiResponse, asyncHandler } from "../../shared/utils";
 import {
-    sendFollowRequest,
     acceptFollowRequest,
-    rejectFollowRequest,
-    unfollow,
-    removeFollower,
     getFollowers,
     getFollowing,
     getPendingRequests,
+    rejectFollowRequest,
+    removeFollower,
+    sendFollowRequest,
+    unfollow,
 } from "./follow.service";
 
 export const sendFollowRequestController = asyncHandler(async (req, res) => {
@@ -18,11 +18,16 @@ export const sendFollowRequestController = asyncHandler(async (req, res) => {
         res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
         return;
     }
+
+    const { followingType } = req.body;
+    if (followingType !== "Student" && followingType !== "Org") {
+        throw new ApiError(400, "followingType must be either Student or Org");
+    }
+
     const followerId = req.user._id;
     const followingId = new mongoose.Types.ObjectId(
         req.params.followingId as string
     );
-    const { followingType } = req.body;
 
     const follow = await sendFollowRequest(
         followerId,

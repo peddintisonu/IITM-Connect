@@ -23,11 +23,10 @@ export const onboard = asyncHandler(async (req: Request, res: Response) => {
 
     const parsed = onboardingSchema.safeParse(req.body);
     if (!parsed.success) {
-        throw new ApiError(
-            400,
-            "Validation failed",
-            parsed.error.flatten().fieldErrors as string[]
-        );
+        const errors = Object.entries(parsed.error.flatten().fieldErrors)
+            .map(([field, messages]) => `${field}: ${messages?.join(", ")}`)
+            .join("; ");
+        throw new ApiError(400, errors);
     }
 
     const student = await onboardStudent(req.user._id, parsed.data);
@@ -49,11 +48,10 @@ export const updateProfile = asyncHandler(
 
         const parsed = updateProfileSchema.safeParse(req.body);
         if (!parsed.success) {
-            throw new ApiError(
-                400,
-                "Validation failed",
-                parsed.error.flatten().fieldErrors as string[]
-            );
+            const errors = Object.entries(parsed.error.flatten().fieldErrors)
+                .map(([field, messages]) => `${field}: ${messages?.join(", ")}`)
+                .join("; ");
+            throw new ApiError(400, errors);
         }
 
         const updated = await editStudentProfile(
@@ -71,11 +69,10 @@ export const updateHostel = asyncHandler(
 
         const parsed = updateHostelSchema.safeParse(req.body);
         if (!parsed.success) {
-            throw new ApiError(
-                400,
-                "Validation failed",
-                parsed.error.flatten().fieldErrors as string[]
-            );
+            const errors = Object.entries(parsed.error.flatten().fieldErrors)
+                .map(([field, messages]) => `${field}: ${messages?.join(", ")}`)
+                .join("; ");
+            throw new ApiError(400, errors);
         }
 
         const updated = await changeStudentHostel(
@@ -93,11 +90,10 @@ export const updatePrivacy = asyncHandler(
 
         const parsed = updatePrivacySchema.safeParse(req.body);
         if (!parsed.success) {
-            throw new ApiError(
-                400,
-                "Validation failed",
-                parsed.error.flatten().fieldErrors as string[]
-            );
+            const errors = Object.entries(parsed.error.flatten().fieldErrors)
+                .map(([field, messages]) => `${field}: ${messages?.join(", ")}`)
+                .join("; ");
+            throw new ApiError(400, errors);
         }
 
         const updated = await editPrivacySettings(

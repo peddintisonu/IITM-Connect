@@ -6,7 +6,7 @@
 **Stack:** MERN + TypeScript  
 **Team:** 2 developers  
 **Start Date:** 11-04-2026  
-**Last Updated:** 13-04-2026
+**Last Updated:** 14-04-2026
 
 ---
 
@@ -125,6 +125,7 @@ Courses     { _id, name, code, abbreviation, duration(optional — null for PhD)
 ```
 
 Seeded once by super admin. Never modified through the app.
+
 - 20 hostels — 15 boys, 5 girls
 - 18 departments
 - 10 courses — B.Tech, B.S., Dual Degree, M.Tech, M.A., Ph.D., M.S., M.Sc., MBA, BS Medical
@@ -136,51 +137,58 @@ Seeded once by super admin. Never modified through the app.
 ```
 Student {
   _id,
-  fullName,        — frozen from Google OAuth smail display name, never editable
-  email,           — smail, unique, used as login identity
-  displayName,     — set during onboarding, editable anytime
-  username,        — set during onboarding, unique, lowercase, social handle
-
-  profilePhoto,    — from Google OAuth at signup, replaceable
-  coverPhoto,      — set by student anytime
+  fullName,             — frozen from Google OAuth smail display name, never editable
+  email,                — smail, unique, used as login identity
+  displayName,          — set during onboarding, editable anytime
+  username,             — set during onboarding, unique, lowercase, social handle
+  profilePhoto,         — from Google OAuth at signup, replaceable via separate route
+  profilePhotoPublicId, — cloudinary internal id, never exposed to client
+  coverPhoto,           — set by student anytime via separate route
+  coverPhotoPublicId,   — cloudinary internal id, never exposed to client
   bio,
   links[{ label, url }],
   interests[],
   skills[],
-
-  currentRollNo,       — full roll no e.g. "be24b056", parsed from smail at signup
-  currentDeptId,       — ref to Department, looked up by deptCode at signup
-  currentCourseId,     — ref to Course, looked up by courseCode at signup
-  currentBatch,        — full year e.g. 2024 (not 24), parsed from smail at signup
-  graduationYear,      — calculated: batch + course.duration, null for PhD
-
-  currentHostelId,     — ref to Hostel, set during onboarding
-  currentRoomNo,       — Number, set during onboarding
-
+  currentRollNo,        — full roll no e.g. "be24b056", parsed from smail at signup
+  currentDeptId,        — ref to Department, looked up by deptCode at signup
+  currentCourseId,      — ref to Course, looked up by courseCode at signup
+  currentBatch,         — full year e.g. 2024 (not 24), parsed from smail at signup
+  graduationYear,       — calculated: batch + course.duration, null for PhD
+  currentHostelId,      — ref to Hostel, set during onboarding
+  currentRoomNo,        — Number, set during onboarding
   rollNoHistory[{ rollNo, deptId, courseId, batch }],
-    — appended on dept or course change, no dates tracked
+                        — appended on dept or course change, no dates tracked
   hostelHistory[{ hostelId, roomNo }],
-    — appended on every hostel change, seeded with first entry at onboarding
-
-  accountType,         — "public" | "private", default "public"
-  privacySettings{
-    hiddenFields[]     — array of field names student chose to hide
-                       — public account default: ["roomNo"]
-                       — private account default: ["rollNo", "hostel", "roomNo"]
-                       — student can add or remove any field anytime
+                        — appended on every hostel change, seeded with first entry at onboarding
+  accountType,          — "public" | "private", default "public"
+  privacySettings {
+    hiddenFields[]      — allowed values: rollNo, batch, graduationYear, dept, course, hostel, roomNo, email
+                        — public account default: ["roomNo"]
+                        — private account default: ["rollNo", "hostel", "roomNo"]
+                        — student can add or remove any allowed field anytime
   },
-
-  status,              — "active" | "inactive" | "suspended"
-  isOnboarded,         — false until onboarding form submitted
-  tokenVersion,        — incrementing, invalidates all sessions on logout-all
-  createdAt, updatedAt
+  status,               — "active" | "inactive" | "suspended"
+  isOnboarded,          — false until onboarding form submitted
+  tokenVersion,         — incrementing, invalidates all sessions on logout-all
+  createdAt,
+  updatedAt
 }
 ```
 
 **Notes:**
+
 - `currentYear` is not stored — calculated on the fly: `(currentCalendarYear - currentBatch) + 1`, resets after May each year
 - All current fields live at root for fast reads
 - History arrays exist only for edge case tracking — rare dept/course/hostel changes
+- `tokenVersion`, `__v`, `profilePhotoPublicId`, `coverPhotoPublicId` are never sent to client
+
+**Profile Visibility Rules: **:
+
+- Blocked (either direction) → 404 not found
+- Private account + not following → displayName, username, profilePhoto only
+- Public account + not following → all fields except hiddenFields
+- Following → all fields except hiddenFields
+- Viewing own profile → all fields
 
 ---
 
@@ -403,15 +411,15 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 
 ## 8. Auth
 
-| Step | Detail |
-| :--- | :--- |
-| **Signup** | Google OAuth — smail only |
-| **Domain check** | Must end with `@smail.iitm.ac.in` |
-| **Prefill** | Roll no, dept, course, batch, graduationYear parsed at signup from smail |
-| **Onboarding** | displayName, username, accountType, hostel, roomNo |
-| **Login** | Google OAuth — one tap, no password |
-| **Session** | Access token (15m) + Refresh token (7d) in httpOnly cookies |
-| **Username** | Social identity only, not used for login |
+| Step             | Detail                                                                   |
+| :--------------- | :----------------------------------------------------------------------- |
+| **Signup**       | Google OAuth — smail only                                                |
+| **Domain check** | Must end with `@smail.iitm.ac.in`                                        |
+| **Prefill**      | Roll no, dept, course, batch, graduationYear parsed at signup from smail |
+| **Onboarding**   | displayName, username, accountType, hostel, roomNo                       |
+| **Login**        | Google OAuth — one tap, no password                                      |
+| **Session**      | Access token (15m) + Refresh token (7d) in httpOnly cookies              |
+| **Username**     | Social identity only, not used for login                                 |
 
 ### OAuth Callback Flow
 
@@ -420,76 +428,85 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 3. Verify `@smail.iitm.ac.in` domain — **reject immediately** if not smail.
 4. **If student exists:** Issue tokens → Done.
 5. **If new student:**
-   * Parse smail prefix → `deptCode`, `batch`, `courseCode`, `rollNo`.
-   * Lookup **Department** by `deptCode` → get `deptId`.
-   * Lookup **Course** by `courseCode` → get `courseId`.
-   * Clean `fullName` from Google display name (strip roll no suffix).
-   * Calculate `graduationYear` = `batch` + `course.duration` (null for PhD).
-   * `Student.create()` with all prefilled data.
-   * Issue tokens & redirect to onboarding.
+    - Parse smail prefix → `deptCode`, `batch`, `courseCode`, `rollNo`.
+    - Lookup **Department** by `deptCode` → get `deptId`.
+    - Lookup **Course** by `courseCode` → get `courseId`.
+    - Clean `fullName` from Google display name (strip roll no suffix).
+    - Calculate `graduationYear` = `batch` + `course.duration` (null for PhD).
+    - `Student.create()` with all prefilled data.
+    - Issue tokens & redirect to onboarding.
 
 ### Onboarding Flow
 
-* **Trigger:** Student logs in first time → `isOnboarded: false`.
-* **Frontend:** Redirects to `/onboarding` page.
-* **Fields:**
-  * `displayName`: Required, editable display name.
-  * `username`: Required, unique, lowercase handle.
-  * `accountType`: `"public"` | `"private"`.
-  * `currentHostelId`: Optional (day scholars skip).
-  * `currentRoomNo`: Optional, required if hostel selected.
-* **Backend:** `PATCH /api/v1/student/onboarding`
-  * `privacySettings.hiddenFields` seeded based on `accountType`:
-    * **Public:** `["roomNo"]`
-    * **Private:** `["rollNo", "hostel", "roomNo"]`
-  * `hostelHistory[]` seeded with first entry.
-  * `isOnboarded: true`.
-  * Redirect to feed.
+- **Trigger:** Student logs in first time → `isOnboarded: false`.
+- **Frontend:** Redirects to `/onboarding` page.
+- **Fields:**
+    - `displayName`: Required, editable display name.
+    - `username`: Required, unique, lowercase handle.
+    - `accountType`: `"public"` | `"private"`.
+    - `currentHostelId`: Optional (day scholars skip).
+    - `currentRoomNo`: Optional, required if hostel selected.
+- **Backend:** `PATCH /api/v1/student/onboarding`
+    - `privacySettings.hiddenFields` seeded based on `accountType`:
+        - **Public:** `["roomNo"]`
+        - **Private:** `["rollNo", "hostel", "roomNo"]`
+    - `hostelHistory[]` seeded with first entry.
+    - `isOnboarded: true`.
+    - Redirect to feed.
 
 ### Token Strategy
 
-* **Access token:** 15 minutes, JWT (HS256) in `httpOnly` cookie.
-* **Refresh token:** 7 days, JWT in `httpOnly` cookie, hashed with SHA-256 before storing in DB.
-* **`sessionId`:** Embedded in JWT payload — direct link between access token and session.
-* **`tokenVersion`:** Embedded in JWT payload — checked on every request against DB value.
-* **Refresh token rotation:** Old session deleted, new session created on every refresh.
-* **Token invalidation:** Incrementing `tokenVersion` on Student instantly invalidates all sessions.
+- **Access token:** 15 minutes, JWT (HS256) in `httpOnly` cookie.
+- **Refresh token:** 7 days, JWT in `httpOnly` cookie, hashed with SHA-256 before storing in DB.
+- **`sessionId`:** Embedded in JWT payload — direct link between access token and session.
+- **`tokenVersion`:** Embedded in JWT payload — checked on every request against DB value.
+- **Refresh token rotation:** Old session deleted, new session created on every refresh.
+- **Token invalidation:** Incrementing `tokenVersion` on Student instantly invalidates all sessions.
 
 ### Session Management
 
-* **Storage:** One Session document per logged-in device.
-* **Schema:** `userId`, `refreshToken` (hashed), `deviceInfo` (browser + OS via `ua-parser-js`), `expiresAt`, `sessionId`.
-* **Cleanup:** TTL index on `expiresAt` for auto-deletion.
-* **Optimization:** `protectRoute` fetches student + session in parallel via `Promise.all`.
+- **Storage:** One Session document per logged-in device.
+- **Schema:** `userId`, `refreshToken` (hashed), `deviceInfo` (browser + OS via `ua-parser-js`), `expiresAt`, `sessionId`.
+- **Cleanup:** TTL index on `expiresAt` for auto-deletion.
+- **Optimization:** `protectRoute` fetches student + session in parallel via `Promise.all`.
 
 ### Auth Service Logic
 
-* **`generateTokens(student, deviceInfo)`:** Creates session document, signs both tokens with `sessionId` + `tokenVersion`, hashes refresh token before saving.
-* **`refreshAccessToken(refreshToken)`:** Verifies JWT, finds session, compares hash, rotates session, checks `tokenVersion`.
-* **`logoutOne(refreshToken)`:** Verifies JWT, deletes session by `sessionId`.
-* **`logoutAll(studentId)`:** Deletes all sessions for student, increments `tokenVersion`.
+- **`generateTokens(student, deviceInfo)`:** Creates session document, signs both tokens with `sessionId` + `tokenVersion`, hashes refresh token before saving.
+- **`refreshAccessToken(refreshToken)`:** Verifies JWT, finds session, compares hash, rotates session, checks `tokenVersion`.
+- **`logoutOne(refreshToken)`:** Verifies JWT, deletes session by `sessionId`.
+- **`logoutAll(studentId)`:** Deletes all sessions for student, increments `tokenVersion`.
 
 ### API Routes
 
 #### Auth Routes
-| Method | Route | Protection | Description |
-| :--- | :--- | :--- | :--- |
-| GET | `/api/v1/auth/google` | `redirectIfAuthenticated` | Triggers Google OAuth |
-| GET | `/api/v1/auth/google/callback` | — | Google redirect, issues tokens |
-| GET | `/api/v1/auth/me` | `protectRoute` | Returns current student |
-| POST | `/api/v1/auth/refresh` | — | Rotates tokens |
-| POST | `/api/v1/auth/logout` | `protectRoute` | Clears current session |
-| POST | `/api/v1/auth/logout-all` | `protectRoute` | Clears all sessions & increments version |
+
+| Method | Route                          | Protection                | Description                              |
+| :----- | :----------------------------- | :------------------------ | :--------------------------------------- |
+| GET    | `/api/v1/auth/google`          | `redirectIfAuthenticated` | Triggers Google OAuth                    |
+| GET    | `/api/v1/auth/google/callback` | —                         | Google redirect, issues tokens           |
+| GET    | `/api/v1/auth/me`              | `protectRoute`            | Returns current student                  |
+| POST   | `/api/v1/auth/refresh`         | —                         | Rotates tokens                           |
+| POST   | `/api/v1/auth/logout`          | `protectRoute`            | Clears current session                   |
+| POST   | `/api/v1/auth/logout-all`      | `protectRoute`            | Clears all sessions & increments version |
 
 #### Student Routes
-| Method | Route | Protection | Description |
-| :--- | :--- | :--- | :--- |
-| PATCH | `/api/v1/student/onboarding` | `protectRoute` | Submits onboarding form |
+
+| Method | Route                         | Protection     | Description                                 |
+| :----- | :---------------------------- | :------------- | :------------------------------------------ |
+| PATCH  | `/api/v1/students/onboarding` | `protectRoute` | Submits onboarding form                     |
+| GET    | `/api/v1/students/me`         | `protectRoute` | Returns current student                     |
+| PATCH  | `/api/v1/students/me/profile` | `protectRoute` | Updates text profile fields                 |
+| PATCH  | `/api/v1/students/me/hostel`  | `protectRoute` | Changes hostel and room, appends to history |
+| PATCH  | `/api/v1/students/me/privacy` | `protectRoute` | Updates accountType or hiddenFields         |
+| PATCH  | `/api/v1/students/me/photo`   | `protectRoute` | Uploads profile photo to Cloudinary         |
+| PATCH  | `/api/v1/students/me/cover`   | `protectRoute` | Uploads cover photo to Cloudinary           |
+| GET    | `/api/v1/students/:username`  | `protectRoute` | Returns privacy filtered student profile    |
 
 ### Middleware
 
-* **`protectRoute`:** Verifies JWT, checks `tokenVersion` against DB, verifies session exists.
-* **`redirectIfAuthenticated`:** Checks auth state before allowing access to `/google`, prevents duplicate sessions.
+- **`protectRoute`:** Verifies JWT, checks `tokenVersion` against DB, verifies session exists.
+- **`redirectIfAuthenticated`:** Checks auth state before allowing access to `/google`, prevents duplicate sessions.
 
 ---
 
@@ -532,19 +549,19 @@ Block visibility rules
 
 ### Social Routes
 
-| Method | Route | Description |
-| ------ | ----- | ----------- |
-| POST | `/api/v1/social/follow/:followingId` | Send follow request |
-| DELETE | `/api/v1/social/follow/:followingId` | Unfollow |
-| POST | `/api/v1/social/follow/:followerId/accept` | Accept follow request |
-| POST | `/api/v1/social/follow/:followerId/reject` | Reject follow request |
-| DELETE | `/api/v1/social/follow/:followerId/remove` | Remove a follower |
-| GET | `/api/v1/social/follow/followers` | Get my followers |
-| GET | `/api/v1/social/follow/following` | Get my following |
-| GET | `/api/v1/social/follow/requests` | Get pending requests |
-| POST | `/api/v1/social/block/:blockedId` | Block a student |
-| DELETE | `/api/v1/social/block/:blockedId` | Unblock a student |
-| GET | `/api/v1/social/block` | Get my block list |
+| Method | Route                                      | Description           |
+| ------ | ------------------------------------------ | --------------------- |
+| POST   | `/api/v1/social/follow/:followingId`       | Send follow request   |
+| DELETE | `/api/v1/social/follow/:followingId`       | Unfollow              |
+| POST   | `/api/v1/social/follow/:followerId/accept` | Accept follow request |
+| POST   | `/api/v1/social/follow/:followerId/reject` | Reject follow request |
+| DELETE | `/api/v1/social/follow/:followerId/remove` | Remove a follower     |
+| GET    | `/api/v1/social/follow/followers`          | Get my followers      |
+| GET    | `/api/v1/social/follow/following`          | Get my following      |
+| GET    | `/api/v1/social/follow/requests`           | Get pending requests  |
+| POST   | `/api/v1/social/block/:blockedId`          | Block a student       |
+| DELETE | `/api/v1/social/block/:blockedId`          | Unblock a student     |
+| GET    | `/api/v1/social/block`                     | Get my block list     |
 
 ---
 
@@ -897,4 +914,3 @@ server/src/
 ---
 
 _Document will be updated as development progresses._
-

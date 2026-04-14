@@ -1,4 +1,5 @@
 // server/src/shared/utils/ApiResponse.ts
+
 class ApiResponse<T> {
     statusCode: number;
     data: T;
