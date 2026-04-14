@@ -16,5 +16,6 @@
         "markdown"
     ],
     "prettier.prettierPath": "./node_modules/prettier",
-    "prettier.enableDebugLogs": true
+    "prettier.enableDebugLogs": true,
+    "cSpell.words": ["smail"]
 }

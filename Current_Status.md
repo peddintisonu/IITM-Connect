@@ -18,6 +18,8 @@
 - Passport Google OAuth strategy with smail domain check (`@smail.iitm.ac.in`)
 - Student model with `tokenVersion` for session invalidation
 - Session model with TTL index, device info, hashed refresh token storage
+- Session management extended with IP/userAgent tracking, `lastAccessedAt`, revoked sessions, and per-device session listing/revocation
+- Auth controller now issues device-aware sessions from Google callback using UA + IP metadata
 - JWT auth — access token (15m) + refresh token (7d) in httpOnly cookies
 - `sessionId` embedded in JWT payload — direct link between token and session
 - Refresh token rotation — old session deleted, new session created on every refresh
@@ -35,6 +37,8 @@
     - `POST /api/v1/auth/refresh` — rotates tokens
     - `POST /api/v1/auth/logout` — clears current session
     - `POST /api/v1/auth/logout-all` — clears all sessions, increments tokenVersion
+    - `GET  /api/v1/auth/sessions` — lists sessions for current user
+    - `POST /api/v1/auth/sessions/:sessionId/logout` — revokes a specific session
 - Express type augmentation for `req.user` as `IStudent`
 - `session.model.ts` moved to `modules/auth/`
 
@@ -237,149 +241,11 @@
 
 ## ⏳ Next Up
 
-- Student discovery & search — `GET /api/v1/students/search?query=...&dept=...&batch=...`
-- Org module — Organisation, OrgRole, OrgRoleTemplate, OrgTenure, POR system
-
----
-
-## 📋 Detailed Next Steps (Updated Roadmap)
-
-### ✅ Phase 1: Student Profile & Discovery (COMPLETED)
-
-**Profile Management Routes (DONE)**
-
-- ✅ `GET /api/v1/students/me` — authenticated user's full profile
-- ✅ `PATCH /api/v1/students/me/profile` — edit bio, links, interests, skills, displayName
-- ✅ `PATCH /api/v1/students/me/privacy` — toggle account type, manage hidden fields
-- ✅ `PATCH /api/v1/students/me/hostel` — update hostel and room
-- ✅ `GET /api/v1/students/:username` — public profile view (privacy-aware, respects blocks)
-
-**Photo Upload (DONE)**
-
-- ✅ `PATCH /api/v1/students/me/photo` — profile photo upload with validation
-- ✅ `PATCH /api/v1/students/me/cover` — cover photo upload with validation
-- ✅ Cloudinary integration with auto-deletion of old photos
-- ✅ Upload limits config (5MB profile, 10MB cover)
-
-**Privacy & Visibility (DONE)**
-
-- ✅ Privacy-aware profile fetching (blocks, follows, hidden fields)
-- ✅ 8 allowed hidden fields with smart defaults
-- ✅ Private account protection — minimal profile for non-followers
-
-**Validation & Docs (DONE)**
-
-- ✅ Zod schemas for all inputs with comprehensive validation
-- ✅ Swagger/OpenAPI documentation for all endpoints
-- ✅ Error handling with field-level validation messages
-
-### Phase 1B: Student Discovery & Search (1-2 weeks)
-
-1. **Search Endpoint**
-    - `GET /api/v1/students/search?query=...&dept=...&batch=...&hostel=...&page=...&limit=...`
-    - Text search on `displayName`, `username` (partial matches)
-    - Filters — department, batch, hostel, account status
-    - Pagination — default 20 results per page
-    - Privacy-aware — respect hidden fields, blocks, private accounts
-
-2. **Search Indices**
-    - Create compound index on `displayName`, `username` for text search
-    - Index on `currentDeptId`, `currentBatch`, `currentHostelId` for filtering
-    - Consider search performance implications
-
-3. **Suggestions/Autocomplete**
-    - `GET /api/v1/students/search/suggestions?query=...` — limited results (5-10) for typeahead
-    - Fast lookup for usernames and display names
-
-### Phase 2: Organization Module (Week 2-3)
-
-1. **Organisation Model**
-    - `name`, `handle` (unique, like username), `description`, `logo`, `coverPhoto`
-    - `createdBy` (founder ObjectId), `members[]` array of role objects
-    - `type` — `"technical"` | `"cultural"` | `"sports"` | `"academic"` | `"other"`
-    - `isVerified`, `joinPolicy` — `"open"` | `"approval"` | `"invite"`
-    - Metadata — `followerCount`, `memberCount`, `createdAt`, `updatedAt`
-
-2. **OrgRole Model**
-    - Embedded in org's `members` array, not separate collection
-    - `memberId` (StudentId), `role` (applies template), `status` (`"active"` | `"inactive"`), `joinedAt`, `leftAt`
-
-3. **OrgRoleTemplate (Preset Roles)**
-    - Defined per org
-    - `roleName`, `permissions[]` — `post`, `moderate`, `invite`, `manage_roles`, `edit_org`, `remove_member`
-    - Presets: Admin (all), Moderator (post, moderate, invite), Member (post)
-
-4. **POR (Position of Responsibility) Tracking**
-    - Separate collection or embedded in Org model
-    - `studentId`, `orgId`, `position`, `roleId`, `startDate`, `endDate`
-    - Displayed on student profile under achievements
-    - Historical tracking — multiple PORs per student across time
-
-5. **Organization Routes** (MVP)
-    - `POST /api/v1/org` — create organization (auth required)
-    - `GET /api/v1/org/:handle` — public org profile
-    - `PATCH /api/v1/org/:id` — edit org details (admin only)
-    - `POST /api/v1/org/:id/members` — invite/add member (respects joinPolicy)
-    - `GET /api/v1/org/:id/members` — list members with roles
-    - `POST /api/v1/org/:id/join` — join an open org
-    - `POST /api/v1/org/:id/leave` — leave an org
-    - `DELETE /api/v1/org/:id/members/:memberId` — remove member (admin only)
-
-### Phase 3: Feed & Content (Week 3-4)
-
-1. **Post Model**
-    - `authorId`, `authorType` (`"student"` | `"org"`), `content` (required, max 1500 chars)
-    - `mediaUrls[]` — up to 10 images, supports multiple formats
-    - `metadata` — `likes[]`, `commentCount`, `shareCount`, `repostCount`
-    - Timestamps — `createdAt`, `updatedAt`
-    - Privacy: respects author's privacy settings + account type
-    - Status — `"published"` | `"draft"` | `"archived"`
-
-2. **Comment Model**
-    - `postId`, `authorId`, `content`, `likes`, timestamps
-    - Nested replies support (optional Phase 2)
-
-3. **Feed Endpoints**
-    - `POST /api/v1/posts` — create post (image upload middleware)
-    - `GET /api/v1/feed` — personalized feed (following's posts, chronological or algorithm)
-    - `GET /api/v1/students/:username/posts` — user's timeline (public/private per settings)
-    - `GET /api/v1/org/:orgId/posts` — org timeline
-    - `PATCH /api/v1/posts/:id` — edit own post (auth + author check)
-    - `DELETE /api/v1/posts/:id` — delete own post
-    - `POST /api/v1/posts/:id/like` — like/unlike post
-    - `POST /api/v1/posts/:id/comment` — add comment
-    - `GET /api/v1/posts/:id/likers` — who liked this post
-
-4. **Feed Algorithm (Phase 3 V2 - Optional)**
-    - Chronological default for MVP
-    - Future: Engagement-based ranking (likes, comments, follows)
-
-### Phase 4: Notifications & Real-time (Week 4+)
-
-1. **Notification Model**
-    - `recipientId`, `type` (`"follow_request"`, `"follow_accepted"`, `"post_like"`, `"comment"`, `"org_invite"`, etc.)
-    - `relatedUserId`, `relatedPostId`, `relatedOrgId`, `message` (rich text or template-based)
-    - `isRead`, `readAt`, `archivedAt`
-    - `createdAt` — for chronological ordering
-
-2. **Notification Routes**
-    - `GET /api/v1/notifications` — all unread notifications
-    - `GET /api/v1/notifications?read=false&limit=20` — pagination
-    - `PATCH /api/v1/notifications/:id/read` — mark single notification as read
-    - `PATCH /api/v1/notifications/read-all` — mark all as read
-    - `DELETE /api/v1/notifications/:id` — archive/delete notification
-
-3. **Socket.io Integration** (Real-time)
-    - Follow request notifications — instant
-    - Post interactions notifications — likes, comments (with batching)
-    - Org invites — instant
-    - Presence tracking — online/offline status
-    - Typing indicators (optional)
-
-4. **Notification Preferences**
-    - Per notification type opt-in/out
-    - Digest options — real-time, hourly, daily
-    - Mute specific users or orgs
+- [ ] Auth module — rate limiting, sliding session expiry, session cleanup polish
+- [ ] Core module — lookup endpoints for master data and seed validation checks
+- [ ] Student module — search/discovery endpoints and query indexes
+- [ ] Social module — notification hooks for follow/block actions
+- [ ] Org module — base models and routes for organisation + POR system
 
 ---
 

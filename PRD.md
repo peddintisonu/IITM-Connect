@@ -54,360 +54,40 @@ LinkedIn (profiles + PORs)
 | Key Fests  | Saarang, Shaastra                                                                    |
 | Key Bodies | CFI, SEC, MMCC                                                                       |
 
----
-
 ## 4. Org Types
 
-| Type                 | Description                | Members         | POR Based |
-| -------------------- | -------------------------- | --------------- | --------- |
-| club                 | Activity clubs             | Manual apply    | Yes       |
-| team                 | Sports / tech teams        | Manual apply    | Yes       |
-| fest                 | Saarang, Shaastra etc.     | Recruited       | Yes       |
-| hostel               | Hostel + student body      | Auto by profile | Yes       |
-| department           | Dept + student body        | Auto by roll no | Yes       |
-| monitoring_committee | Mess, shops, SEC etc.      | Appointed       | Yes       |
-| insti_body           | Student council, GS        | N/A             | Yes       |
-| institute_handle     | @iitmadras, placement cell | N/A             | No        |
-
-### Permanent Orgs (Admin Managed)
-
-Saarang, Shaastra, CFI, all CFI clubs, all hostels, all departments, SEC, MMCC, all monitoring committees
-
-### Dynamic Orgs (Student Created)
-
-New clubs, informal teams, fest sub-teams
-
----
+- club: activity clubs, manual apply, POR based
+- team: sports or tech teams, manual apply, POR based
+- fest: Saarang, Shaastra, recruited, POR based
+- hostel: hostel and student body, auto by profile, POR based
+- department: department body, auto by roll number, POR based
+- monitoring_committee: mess, shops, SEC, appointed, POR based
+- insti_body: student council or GS, POR based
+- institute_handle: institutional accounts like @iitmadras, not POR based
 
 ## 5. POR System
 
-### Trust Chain
+- Super Admin seeds the top level of each org hierarchy.
+- POR approval flows upward through the hierarchy; statuses are pending, active, completed, and revoked.
+- Role templates are versioned, and roles are permanent documents that are only deactivated.
+- Tenure is a separate entity, and PORs are tied to a specific tenure and template version.
 
-```
-Super Admin (seeds top of every org)
-        ↓
-Top POR holders verified manually at launch
-        ↓
-They verify the level below them
-        ↓
-Chain cascades down automatically
-```
+## 6. DB Schema Summary
 
-### POR Verification Flow
-
-```
-Student claims POR → status: pending
-        ↓
-Person above in hierarchy approves
-        ↓
-status: active — badge appears on profile
-```
-
-### Role Hierarchy Design
-
-- Every org defines its own role structure (flexible)
-- Roles are permanent documents — never deleted, only deactivated
-- Level, maxHolders, permissions live on the template — not the role
-- Template is versioned — changes create a new version, old preserved
-- Tenure links to template version at creation time
-- POR links to template version at assignment time
-
----
-
-## 6. DB Schema
-
-### Master Data
-
-```
-Hostels     { _id, name, code, type("boys" | "girls") }
-Departments { _id, name, code }
-Courses     { _id, name, code, abbreviation, duration(optional — null for PhD) }
-```
-
-Seeded once by super admin. Never modified through the app.
-
-- 20 hostels — 15 boys, 5 girls
-- 18 departments
-- 10 courses — B.Tech, B.S., Dual Degree, M.Tech, M.A., Ph.D., M.S., M.Sc., MBA, BS Medical
-
----
-
-### Student
-
-```
-Student {
-  _id,
-  fullName,             — frozen from Google OAuth smail display name, never editable
-  email,                — smail, unique, used as login identity
-  displayName,          — set during onboarding, editable anytime
-  username,             — set during onboarding, unique, lowercase, social handle
-  profilePhoto,         — from Google OAuth at signup, replaceable via separate route
-  profilePhotoPublicId, — cloudinary internal id, never exposed to client
-  coverPhoto,           — set by student anytime via separate route
-  coverPhotoPublicId,   — cloudinary internal id, never exposed to client
-  bio,
-  links[{ label, url }],
-  interests[],
-  skills[],
-  currentRollNo,        — full roll no e.g. "be24b056", parsed from smail at signup
-  currentDeptId,        — ref to Department, looked up by deptCode at signup
-  currentCourseId,      — ref to Course, looked up by courseCode at signup
-  currentBatch,         — full year e.g. 2024 (not 24), parsed from smail at signup
-  graduationYear,       — calculated: batch + course.duration, null for PhD
-  currentHostelId,      — ref to Hostel, set during onboarding
-  currentRoomNo,        — Number, set during onboarding
-  rollNoHistory[{ rollNo, deptId, courseId, batch }],
-                        — appended on dept or course change, no dates tracked
-  hostelHistory[{ hostelId, roomNo }],
-                        — appended on every hostel change, seeded with first entry at onboarding
-  accountType,          — "public" | "private", default "public"
-  privacySettings {
-    hiddenFields[]      — allowed values: rollNo, batch, graduationYear, dept, course, hostel, roomNo, email
-                        — public account default: ["roomNo"]
-                        — private account default: ["rollNo", "hostel", "roomNo"]
-                        — student can add or remove any allowed field anytime
-  },
-  status,               — "active" | "inactive" | "suspended"
-  isOnboarded,          — false until onboarding form submitted
-  tokenVersion,         — incrementing, invalidates all sessions on logout-all
-  createdAt,
-  updatedAt
-}
-```
-
-**Notes:**
-
-- `currentYear` is not stored — calculated on the fly: `(currentCalendarYear - currentBatch) + 1`, resets after May each year
-- All current fields live at root for fast reads
-- History arrays exist only for edge case tracking — rare dept/course/hostel changes
-- `tokenVersion`, `__v`, `profilePhotoPublicId`, `coverPhotoPublicId` are never sent to client
-
-**Profile Visibility Rules: **:
-
-- Blocked (either direction) → 404 not found
-- Private account + not following → displayName, username, profilePhoto only
-- Public account + not following → all fields except hiddenFields
-- Following → all fields except hiddenFields
-- Viewing own profile → all fields
-
----
-
-### Follow
-
-```
-Follow {
-  _id,
-  followerId,      — ref to Student (always a student)
-  followingId,     — ref to Student or Org (dynamic via refPath)
-  followingType,   — "student" | "org"
-  status,          — "pending" | "accepted"
-  acceptedAt,
-  createdAt
-}
-— compound unique index on followerId + followingId
-— index on followingId + status for fast follower lookups
-— orgs cannot follow anyone — only students follow
-— org follows are always accepted immediately (orgs are always public)
-```
-
----
-
-### Block
-
-```
-Block {
-  _id,
-  blockerId,   — ref to Student
-  blockedId,   — ref to Student
-  createdAt
-}
-— compound unique index on blockerId + blockedId
-— blocking auto removes all follows in both directions
-— unblocking does NOT restore follows — must re-follow manually
-```
-
----
-
-### Organisation
-
-```
-Organisation      { _id, name, slug, description, logo, coverPhoto,
-                    entityType,
-                    parentOrgId, associatedDeptId, associatedHostelId,
-                    flags{ isPermanent, isAdminManaged, isGovernance,
-                           canStudentsCreate, canBeArchived, isActive },
-                    visibility, foundedYear, createdAt, createdBy }
-
-OrgRole           { _id, orgId, roleName, isElected,
-                    status, createdAt, createdBy, deactivatedAt }
-                    — intrinsic properties only, never deleted, only status → inactive
-
-OrgRoleTemplate   { _id, orgId, version, isCurrentVersion,
-                    roles[{ roleId, level, maxHolders,
-                            permissions{}, canVerifyRoleIds[] }],
-                    createdAt, createdBy, approvedBy, changeReason }
-                    — never edited, new version created on every structural change
-
-OrgTenure         { _id, orgId, label, startDate, expectedEndDate, actualEndDate,
-                    status, templateVersionId, overlapPeriod{ startDate, endDate },
-                    createdAt, createdBy }
-                    — label auto generated from dates e.g. "May 2025 - Jun 2026"
-                    — can be overridden e.g. "Saarang 2025"
-                    — templateVersionId updates if template changes mid tenure
-                    — one active tenure per org at a time
-                    — upcoming tenure can coexist alongside active tenure
-
-OrgMembership     { _id, studentId, orgId, membershipType,
-                    joinedAt, leftAt, joinMethod, status }
-```
-
-### POR
-
-```
-POR  { _id, studentId, orgId, roleId, tenureId, templateVersionId,
-       startDate, endDate, status,
-       verifiedBy, verifiedAt,
-       handoverNotes, handoverTo, createdAt }
-     — templateVersionId frozen at assignment time, never changes
-     — startDate and endDate can differ from tenure dates (mid-tenure joins)
-     — status: pending | active | completed | revoked
-```
-
-### Request Flows
-
-```
-OrgCreationRequest  { requestedBy, proposedName, orgType, description,
-                      purpose, proposedRoles[], status, approvedBy }
-
-RoleChangeRequest   { orgId, requestedBy, changeType,
-                      proposedChange{}, isPermanent,
-                      status, approvedBy, changeReason }
-```
-
----
-
-### Org + Role + Tenure + POR — How They Connect
-
-```
-Organisation
-    │
-    ├── has many OrgRoles          (what roles exist in this org)
-    ├── has many OrgRoleTemplates  (versioned hierarchy snapshots)
-    └── has many OrgTenures
-              │
-              └── each tenure links to one OrgRoleTemplate version
-                        │
-                        └── each tenure has many PORs
-                                  ├── ref → Student
-                                  ├── ref → OrgRole
-                                  └── templateVersionId frozen at creation
-```
-
----
-
-### Tenure Lifecycle + Flow
-
-```
-Org created
-    │
-    ▼
-First OrgRoleTemplate created (v1)
-First OrgTenure created manually by super admin (for permanent orgs)
-or by org creator (for new orgs)
-    │
-    ▼
-1 month before expectedEndDate
-    │
-    ▼
-App notifies level 1 POR holders of that org
-"Your tenure ends on [date] — create next tenure and begin selection"
-    │
-    ▼
-Any level 1 POR holder opens org settings
-Creates new OrgTenure
-    startDate, expectedEndDate
-    label auto filled from dates, editable
-    templateVersionId → latest version by default
-    status: "upcoming"
-    │
-    ▼
-New level 1 POR holders assigned under upcoming tenure
-    status: pending → verified by super admin (first time) or outgoing level 1
-    │
-    ▼
-New level 1 verifies level 2, level 2 verifies level 3
-Chain builds under upcoming tenure
-Current tenure still active — both visible in team view
-    │
-    ▼
-Outgoing POR holders fill handoverNotes, set handoverTo
-    │
-    ▼
-On actualEndDate
-    current tenure → status: completed, actualEndDate set
-    all current PORs → status: completed, endDate set
-    upcoming tenure → status: active
-    │
-    ▼
-Overlap period if needed
-    old PORs remain readable, new PORs take over responsibilities
-```
-
----
-
-### Reminder Escalation If No New Tenure Created
-
-```
-1 month before   →  notify level 1 POR holders
-2 weeks before   →  remind level 1 POR holders
-1 week before    →  notify level 1 + flag to super admin
-On end date      →  auto complete current tenure
-                    org shown as "Between Tenures"
-                    super admin intervenes if needed
-```
-
----
-
-### Template Versioning Flow
-
-```
-Org created → OrgRoleTemplate v1 (isCurrentVersion: true)
-    │
-    ▼
-Structural change requested (new role, level change, remove role)
-    │
-    ▼
-Minor change   → auto approved
-Major change   → super admin approves, 24hr cooling period
-    │
-    ▼
-New OrgRoleTemplate v2 created (isCurrentVersion: true)
-v1 isCurrentVersion → false (preserved forever)
-    │
-    ▼
-Active OrgTenure templateVersionId → updated to v2
-New PORs created after this → templateVersionId: v2 (frozen)
-Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
-```
-
----
+- Master data: hostels, departments, and courses are seeded once and not edited through the app.
+- Student: identity, profile, academic fields, history arrays, privacy settings, `status`, `isOnboarded`, and `tokenVersion`.
+- Follow: `followerId`, `followingId`, `followingType`, `status`, `acceptedAt`; org follows are always accepted.
+- Block: `blockerId`, `blockedId`; blocking removes follows in both directions.
+- Organisation: org metadata, roles, templates, tenures, memberships, PORs, and change requests.
+- Use `_id` references everywhere; names and handles are mutable, IDs are not.
 
 ## 7. Key Design Principles
 
-1. **Reference by \_id always** — never by name, roll no, or smail
-2. **Names can change, IDs never do**
-3. **Never hardcode** — everything is configuration
-4. **Flags over conditionals** — isPermanent not if(org==="Saarang")
-5. **Intrinsic vs template-specific** — level, maxHolders, permissions on template not role
-6. **History over updates** — append, never overwrite
-7. **Roles never deleted** — status → inactive, document preserved
-8. **Event driven architecture** — new features plug in, nothing breaks
-9. **Tenure is its own entity** — not just dates on a POR
-10. **Separate what a person IS from HAS from DOES**
-11. **Follow is one directional by type** — students follow students or orgs, orgs never follow anyone
-12. **Privacy is two layer** — account level (public/private) sets defaults, hiddenFields[] allows per-field overrides
-
----
+1. Reference by `_id`, not by name or roll number.
+2. Preserve history with versioning or append-only records.
+3. Deactivate roles instead of deleting them.
+4. Follow direction matters; orgs never follow anyone.
+5. Privacy is account defaults plus per-field overrides.
 
 ## 8. Auth
 
@@ -466,7 +146,7 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 ### Session Management
 
 - **Storage:** One Session document per logged-in device.
-- **Schema:** `userId`, `refreshToken` (hashed), `deviceInfo` (browser + OS via `ua-parser-js`), `expiresAt`, `sessionId`.
+- **Schema:** `userId`, `refreshToken` (hashed), `deviceInfo` (browser + OS via `ua-parser-js`), `ipAddress`, `userAgent`, `lastAccessedAt`, `revoked`, `expiresAt`, `sessionId`.
 - **Cleanup:** TTL index on `expiresAt` for auto-deletion.
 - **Optimization:** `protectRoute` fetches student + session in parallel via `Promise.all`.
 
@@ -475,20 +155,24 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 - **`generateTokens(student, deviceInfo)`:** Creates session document, signs both tokens with `sessionId` + `tokenVersion`, hashes refresh token before saving.
 - **`refreshAccessToken(refreshToken)`:** Verifies JWT, finds session, compares hash, rotates session, checks `tokenVersion`.
 - **`logoutOne(refreshToken)`:** Verifies JWT, deletes session by `sessionId`.
-- **`logoutAll(studentId)`:** Deletes all sessions for student, increments `tokenVersion`.
+- **`logoutAll(studentId, currentSessionId)`:** Revokes all other sessions, increments `tokenVersion`, preserves the current device session.
+- **`listSessionsForUser(userId, currentSessionId)`:** Returns all sessions for the student, most recent first.
+- **`revokeSession(userId, sessionId)`:** Revokes a specific session.
 
 ### API Routes
 
 #### Auth Routes
 
-| Method | Route                          | Protection                | Description                              |
-| :----- | :----------------------------- | :------------------------ | :--------------------------------------- |
-| GET    | `/api/v1/auth/google`          | `redirectIfAuthenticated` | Triggers Google OAuth                    |
-| GET    | `/api/v1/auth/google/callback` | —                         | Google redirect, issues tokens           |
-| GET    | `/api/v1/auth/me`              | `protectRoute`            | Returns current student                  |
-| POST   | `/api/v1/auth/refresh`         | —                         | Rotates tokens                           |
-| POST   | `/api/v1/auth/logout`          | `protectRoute`            | Clears current session                   |
-| POST   | `/api/v1/auth/logout-all`      | `protectRoute`            | Clears all sessions & increments version |
+| Method | Route                                     | Protection                | Description                              |
+| :----- | :---------------------------------------- | :------------------------ | :--------------------------------------- |
+| GET    | `/api/v1/auth/google`                     | `redirectIfAuthenticated` | Triggers Google OAuth                    |
+| GET    | `/api/v1/auth/google/callback`            | —                         | Google redirect, issues tokens           |
+| GET    | `/api/v1/auth/me`                         | `protectRoute`            | Returns current student                  |
+| POST   | `/api/v1/auth/refresh`                    | —                         | Rotates tokens                           |
+| POST   | `/api/v1/auth/logout`                     | `protectRoute`            | Clears current session                   |
+| POST   | `/api/v1/auth/logout-all`                 | `protectRoute`            | Clears all sessions & increments version |
+| GET    | `/api/v1/auth/sessions`                   | `protectRoute`            | Lists sessions for current student       |
+| POST   | `/api/v1/auth/sessions/:sessionId/logout` | `protectRoute`            | Revokes a specific session               |
 
 #### Student Routes
 
@@ -515,36 +199,40 @@ Existing PORs → templateVersionId: v1 (unchanged, historically accurate)
 ### Follow Flow
 
 ```
+
 Student A wants to follow Student B
-  → check block in both directions → fail silently if blocked
-  → check duplicate follow → fail if already following or pending
-  → if B accountType is "public" → create Follow, status: "accepted" immediately
-  → if B accountType is "private" → create Follow, status: "pending"
-        → B receives notification
-        → B accepts → status: "accepted", acceptedAt set
-        → B rejects → Follow document deleted
+→ check block in both directions → fail silently if blocked
+→ check duplicate follow → fail if already following or pending
+→ if B accountType is "public" → create Follow, status: "accepted" immediately
+→ if B accountType is "private" → create Follow, status: "pending"
+→ B receives notification
+→ B accepts → status: "accepted", acceptedAt set
+→ B rejects → Follow document deleted
 
 Student A wants to follow Org
-  → check duplicate follow
-  → always status: "accepted" — orgs are always public
+→ check duplicate follow
+→ always status: "accepted" — orgs are always public
+
 ```
 
 ### Block Flow
 
 ```
+
 Student A blocks Student B
-  → check self block → fail
-  → check duplicate block → fail if already blocked
-  → create Block document
-  → delete all Follow documents in both directions (A→B and B→A)
+→ check self block → fail
+→ check duplicate block → fail if already blocked
+→ create Block document
+→ delete all Follow documents in both directions (A→B and B→A)
 
 Student A unblocks Student B
-  → delete Block document
-  → follows are NOT restored — B must re-follow manually if desired
+→ delete Block document
+→ follows are NOT restored — B must re-follow manually if desired
 
 Block visibility rules
-  → A blocks B → B cannot view A's profile, cannot follow, cannot find in search
-  → Block check runs in both directions on every follow or profile view request
+→ A blocks B → B cannot view A's profile, cannot follow, cannot find in search
+→ Block check runs in both directions on every follow or profile view request
+
 ```
 
 ### Social Routes
@@ -591,12 +279,14 @@ Block visibility rules
 ### Profile Visibility Rules
 
 ```
+
 Viewer is the student themselves → see everything
 Viewer is a follower → see everything except hiddenFields
 Viewer is not a follower →
-  public account  → see non-hidden fields
-  private account → see only displayName, username, profilePhoto
+public account → see non-hidden fields
+private account → see only displayName, username, profilePhoto
 Viewer is blocked → profile not accessible
+
 ```
 
 ### Org Page Tabs
@@ -635,19 +325,23 @@ update, announcement, result, achievement, recruitment, poll, gallery
 ### Event Types
 
 ```
+
 Intra-College
 ├── Intra-Club
 ├── Inter-Department
 └── Inter-Hostel
 
-Intra-City       (you host, other colleges come)
-Inter-College    (you go to other college)
+Intra-City (you host, other colleges come)
+Inter-College (you go to other college)
+
 ```
 
 ### Event Lifecycle
 
 ```
+
 Creation → Registration → Execution → Aftermath
+
 ```
 
 ### Volunteer Wings
@@ -695,13 +389,15 @@ Async topic-based discussion. Built on top of posts + comments system.
 ## 15. Complaints (Monitoring Committees)
 
 ```
+
 Student submits complaint
-        ↓
+↓
 Assigned to committee POR holder
-        ↓
+↓
 Status tracking: submitted → acknowledged → under review → resolved
-        ↓
+↓
 Full audit trail on every complaint
+
 ```
 
 - Anonymous option for student
@@ -759,7 +455,9 @@ When tenure ends:
 ### Adoption Path
 
 ```
+
 Soft launch → Student GS endorsement → Dean of Students → Institute adoption
+
 ```
 
 ---
@@ -787,39 +485,43 @@ Soft launch → Student GS endorsement → Dean of Students → Institute adopti
 ### Monorepo with npm Workspaces
 
 ```
+
 campusOS/
-├── client/          React + Vite
-├── server/          Node + Express
-├── package.json     workspaces config + shared dev tools
+├── client/ React + Vite
+├── server/ Node + Express
+├── package.json workspaces config + shared dev tools
 ├── tsconfig.base.json
 ├── eslint.config.mjs
 ├── .prettierrc
 ├── .gitignore
 └── .vscode/
+
 ```
 
 ### Server Structure
 
 ```
+
 server/src/
-├── config/          db, passport, env
+├── config/ db, passport, env
 ├── modules/
-│   ├── auth/        auth routes, controller, service, session model
-│   ├── core/
-│   │   └── models/  hostel, department, course
-│   ├── student/     student model, service, controller, routes
-│   └── social/      follow model, block model, services, controllers, routes
-├── seeds/           index.ts, masterData.seed.ts
+│ ├── auth/ auth routes, controller, service, session model
+│ ├── core/
+│ │ └── models/ hostel, department, course
+│ ├── student/ student model, service, controller, routes
+│ └── social/ follow model, block model, services, controllers, routes
+├── seeds/ index.ts, masterData.seed.ts
 ├── shared/
-│   ├── middleware/  auth, error
-│   ├── utils/       asyncHandler, apiError, apiResponse, parseExpiry, parseRollNo
-│   └── constants/   masterData.constants.ts
-├── validations/     student.validation.ts
-├── types/           express.d.ts
-├── jobs/            cron jobs (tenure expiry, reminders)
-├── events/          event emitter + handlers
+│ ├── middleware/ auth, error
+│ ├── utils/ asyncHandler, apiError, apiResponse, parseExpiry, parseRollNo
+│ └── constants/ masterData.constants.ts
+├── validations/ student.validation.ts
+├── types/ express.d.ts
+├── jobs/ cron jobs (tenure expiry, reminders)
+├── events/ event emitter + handlers
 ├── app.ts
 └── server.ts
+
 ```
 
 ---
@@ -914,3 +616,7 @@ server/src/
 ---
 
 _Document will be updated as development progresses._
+
+```
+
+```

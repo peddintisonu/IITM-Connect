@@ -6,10 +6,12 @@ import {
 } from "../../shared/middleware/auth.middleware";
 import { ApiResponse } from "../../shared/utils";
 import {
+    getSessions,
     googleCallback,
     logout,
     logoutAll,
     refreshToken,
+    revokeSession,
 } from "./auth.controller";
 
 const router = Router();
@@ -39,9 +41,13 @@ router.get("/failure", (req, res) => {
     );
 });
 
+// FIXME: Temporary get for these all for testing in browser, will change to post later when we have a frontend to test with
 router.get("/refresh", refreshToken);
 
 router.get("/logout", protectRoute, logout);
 router.get("/logout-all", protectRoute, logoutAll);
+
+router.get("/sessions", protectRoute, getSessions);
+router.post("/sessions/:sessionId/logout", protectRoute, revokeSession);
 
 export default router;

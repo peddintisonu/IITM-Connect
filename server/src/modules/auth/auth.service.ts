@@ -9,12 +9,17 @@ import Session from "./session.model";
 
 export const generateTokens = async (
     student: IStudent,
-    deviceInfo?: string
+    deviceInfo?: string,
+    ipAddress?: string,
+    userAgent?: string
 ) => {
     const session = new Session({
         userId: student._id,
         deviceInfo: deviceInfo || "Unknown Device",
         expiresAt: new Date(Date.now() + tokenExpiry.refreshToken * 1000),
+        ipAddress,
+        userAgent,
+        lastAccessedAt: new Date(),
     });
 
     const payload = {
@@ -96,7 +101,39 @@ export const logoutOne = async (refreshToken: string) => {
         throw new ApiError(400, "Invalid refresh token");
     }
 };
-
-export const logoutAll = async (studentId: string) => {
-    await Session.deleteMany({ userId: studentId });
+export const logoutAll = async (
+    studentId: string,
+    currentSessionId?: string
+) => {
+    // Revoke all sessions except the current one
+    const filter: Record<string, unknown> = { userId: studentId };
+    if (currentSessionId) {
+        filter._id = { $ne: currentSessionId };
+    }
+    await Session.updateMany(filter, { $set: { revoked: true } });
 };
+
+// List all sessions for a user, most recent first
+export const listSessionsForUser = async (
+    userId: string,
+    currentSessionId?: string
+) => {
+    const sessions = await Session.find({ userId })
+        .sort({ lastAccessedAt: -1, createdAt: -1 })
+        .select(
+            "_id deviceInfo ipAddress userAgent lastAccessedAt createdAt expiresAt revoked"
+        )
+        .lean();
+    return { sessions, currentSessionId };
+};
+
+// Revoke (logout) a specific session for a user
+export const revokeSession = async (userId: string, sessionId: string) => {
+    const session = await Session.findOne({ _id: sessionId, userId });
+    if (!session) throw new ApiError(404, "Session not found");
+    if (session.revoked) return; // Already revoked
+    session.revoked = true;
+    await session.save();
+};
+
+// TODO: Implement audit logging for authentication events (login, logout, refresh, session revoke, etc.)

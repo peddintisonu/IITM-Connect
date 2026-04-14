@@ -5,6 +5,10 @@ interface ISession {
     refreshToken: string;
     deviceInfo?: string; // Optional field to store device information
     expiresAt: Date;
+    lastAccessedAt?: Date;
+    ipAddress?: string;
+    userAgent?: string;
+    revoked?: boolean;
 }
 
 // TODO: Add more fields to the session model, such as IP address, user agent, etc., for better security and tracking.
@@ -22,12 +26,14 @@ const sessionSchema = new mongoose.Schema<ISession>(
         },
         refreshToken: { type: String, required: true },
         deviceInfo: { type: String },
-
         expiresAt: { type: Date, required: true },
+        lastAccessedAt: { type: Date, default: Date.now },
+        ipAddress: { type: String },
+        userAgent: { type: String },
+        revoked: { type: Boolean, default: false },
     },
-
     {
-        timestamps: true,
+        timestamps: true, // adds createdAt and updatedAt automatically
     }
 );
 

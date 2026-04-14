@@ -1,5 +1,100 @@
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Session:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: Session ID
+ *         deviceInfo:
+ *           type: string
+ *           description: Device info (browser and OS)
+ *         ipAddress:
+ *           type: string
+ *           description: IP address used for this session
+ *         userAgent:
+ *           type: string
+ *           description: User agent string
+ *         lastAccessedAt:
+ *           type: string
+ *           format: date-time
+ *           description: Last time this session was used
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: Session creation time
+ *         expiresAt:
+ *           type: string
+ *           format: date-time
+ *           description: Session expiry time
+ *         revoked:
+ *           type: boolean
+ *           description: Whether this session is revoked (logged out)
+ */
+
+/**
+ * @swagger
+ * /auth/sessions:
+ *   get:
+ *     summary: List all sessions for the current user
+ *     tags: [Auth]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of sessions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         sessions:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Session'
+ *                         currentSessionId:
+ *                           type: string
+ *                           description: The session ID of the current device/session
+ */
+
+/**
+ * @swagger
+ * /auth/sessions/{sessionId}/logout:
+ *   post:
+ *     summary: Revoke (logout) a specific session for the current user
+ *     tags: [Auth]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The session ID to revoke
+ *     responses:
+ *       200:
+ *         description: Session revoked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         description: Session not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+/**
+ * @swagger
  * tags:
  *   name: Auth
  *   description: Authentication and Session management (Google OAuth)

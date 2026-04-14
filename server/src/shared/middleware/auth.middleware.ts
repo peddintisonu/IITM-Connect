@@ -22,10 +22,16 @@ export const protectRoute = asyncHandler(async (req, res, next) => {
     if (!student) throw new ApiError(401, "Student not found");
     if (!session)
         throw new ApiError(401, "Session expired, please login again");
+    if (session.revoked)
+        throw new ApiError(401, "Session revoked, please login again");
 
     if (decoded.tokenVersion !== student.tokenVersion) {
         throw new ApiError(401, "Token invalidated, please login again");
     }
+
+    // Update lastAccessedAt for the session
+    session.lastAccessedAt = new Date();
+    await session.save();
 
     req.user = student;
     next();
