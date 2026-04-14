@@ -5,8 +5,8 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IFollow extends Document {
     followerId: mongoose.Types.ObjectId;
     followingId: mongoose.Types.ObjectId;
-    followingType: "student" | "org";
-    status: "pending" | "accepted";
+    followingType: "Student" | "Org";
+    status: "pending" | "accepted" | "rejected";
     createdAt: Date;
     acceptedAt?: Date;
 }
@@ -25,7 +25,7 @@ const followSchema = new Schema<IFollow>(
         },
         followingType: {
             type: String,
-            enum: ["student", "org"],
+            enum: ["Student", "Org"],
             required: true,
         },
         status: {

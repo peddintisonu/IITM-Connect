@@ -159,6 +159,13 @@ export const changeStudentHostel = async (
     const student = await Student.findById(studentId);
     if (!student) throw new ApiError(404, "Student not found");
 
+    // Check if provided hostel and room are the same as current - if so, no update needed
+    if (
+        student.currentHostelId?.toString() === data.currentHostelId &&
+        student.currentRoomNo === data.currentRoomNo
+    ) {
+        return student;
+    }
     const updatedStudent = await Student.findByIdAndUpdate(
         studentId,
         {
@@ -253,6 +260,7 @@ export const getStudentByUsername = async (
         const actualField = hiddenFieldMap[field];
         if (actualField)
             delete studentObj[actualField as keyof typeof studentObj];
+        delete studentObj["privacySettings" as keyof typeof studentObj];
     }
 
     return studentObj;

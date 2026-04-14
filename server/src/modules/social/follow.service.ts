@@ -31,9 +31,9 @@ export const sendFollowRequest = async (
         throw new ApiError(400, "Already following or request pending");
     }
 
-    let status: "pending" | "accepted" = "accepted";
+    let status: "pending" | "accepted" | "rejected" = "accepted";
 
-    if (followingType === "student") {
+    if (followingType === "Student") {
         const targetStudent = await Student.findById(followingId);
         if (!targetStudent) {
             throw new ApiError(404, "Student not found");
