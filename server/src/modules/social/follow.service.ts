@@ -33,6 +33,7 @@ export const sendFollowRequest = async (
 
     let status: "pending" | "accepted" | "rejected" = "accepted";
 
+    // FIXME: This is a bit of a hack - we should ideally have the client specify whether it's a student or org follow, and we should also handle the case where the followingId doesn't exist or isn't of the expected type
     if (followingType === "Student") {
         const targetStudent = await Student.findById(followingId);
         if (!targetStudent) {

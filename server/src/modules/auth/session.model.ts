@@ -6,6 +6,13 @@ interface ISession {
     deviceInfo?: string; // Optional field to store device information
     expiresAt: Date;
 }
+
+// TODO: Add more fields to the session model, such as IP address, user agent, etc., for better security and tracking.
+// Also consider adding a field for the session's creation time and last accessed time to help with session management and security.
+// For example:
+// - ipAddress: { type: String }
+// - userAgent: { type: String }
+
 const sessionSchema = new mongoose.Schema<ISession>(
     {
         userId: {
