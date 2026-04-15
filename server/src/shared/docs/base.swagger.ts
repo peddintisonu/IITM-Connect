@@ -1,5 +1,8 @@
 /**
  * @swagger
+ * tags:
+ *   - name: System
+ *     description: Service health and basic API infrastructure endpoints
  * components:
  *   securitySchemes:
  *     cookieAuth:
@@ -43,4 +46,43 @@
  *           items:
  *             type: string
  *           example: ["Invalid email format", "Password too short"]
+ * /:
+ *   get:
+ *     summary: Root route
+ *     description: Protected welcome route used to quickly verify auth middleware behavior.
+ *     tags: [System]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: API root is reachable
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     description: Simple liveness endpoint for uptime checks.
+ *     tags: [System]
+ *     responses:
+ *       200:
+ *         description: Server is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 message:
+ *                   type: string
+ *                   example: IITMConnect server is running
+ * /api-docs.json:
+ *   get:
+ *     summary: OpenAPI specification JSON
+ *     description: Returns the generated OpenAPI document used by Swagger UI and Postman import.
+ *     tags: [System]
+ *     responses:
+ *       200:
+ *         description: OpenAPI spec returned successfully
  */

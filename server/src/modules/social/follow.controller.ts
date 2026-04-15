@@ -1,12 +1,20 @@
 // server/src/modules/social/follow.controller.ts
 
-import mongoose from "mongoose";
-import { ApiError, ApiResponse, asyncHandler } from "../../shared/utils";
+import { FOLLOW_TYPE } from "../../shared/constants/social.constants";
+import {
+    ApiError,
+    ApiResponse,
+    asyncHandler,
+    toObjectId,
+} from "../../shared/utils";
 import {
     acceptFollowRequest,
+    cancelSentFollowRequest,
     getFollowers,
     getFollowing,
     getPendingRequests,
+    getRelationshipState,
+    getSentPendingRequests,
     rejectFollowRequest,
     removeFollower,
     sendFollowRequest,
@@ -14,20 +22,16 @@ import {
 } from "./follow.service";
 
 export const sendFollowRequestController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-
     const { followingType } = req.body;
-    if (followingType !== "Student" && followingType !== "Org") {
+    if (
+        followingType !== FOLLOW_TYPE.STUDENT &&
+        followingType !== FOLLOW_TYPE.ORG
+    ) {
         throw new ApiError(400, "followingType must be either Student or Org");
     }
 
-    const followerId = req.user._id;
-    const followingId = new mongoose.Types.ObjectId(
-        req.params.followingId as string
-    );
+    const followerId = req.user!._id;
+    const followingId = toObjectId(req.params.followingId);
 
     const follow = await sendFollowRequest(
         followerId,
@@ -38,94 +42,98 @@ export const sendFollowRequestController = asyncHandler(async (req, res) => {
 });
 
 export const acceptFollowRequestController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-    const studentId = req.user._id;
-    const followerId = new mongoose.Types.ObjectId(
-        req.params.followerId as string
-    );
+    const studentId = req.user!._id;
+    const followerId = toObjectId(req.params.followerId);
 
     const follow = await acceptFollowRequest(studentId, followerId);
     res.json(new ApiResponse(200, follow, "Follow request accepted"));
 });
 
 export const rejectFollowRequestController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-    const studentId = req.user._id;
-    const followerId = new mongoose.Types.ObjectId(
-        req.params.followerId as string
-    );
+    const studentId = req.user!._id;
+    const followerId = toObjectId(req.params.followerId);
 
     const follow = await rejectFollowRequest(studentId, followerId);
     res.json(new ApiResponse(200, follow, "Follow request rejected"));
 });
 
 export const unfollowController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-    const followerId = req.user._id;
-    const followingId = new mongoose.Types.ObjectId(
-        req.params.followingId as string
-    );
+    const followerId = req.user!._id;
+    const followingId = toObjectId(req.params.followingId);
 
     const follow = await unfollow(followerId, followingId);
     res.json(new ApiResponse(200, follow, "Unfollowed successfully"));
 });
 
-export const removeFollowerController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
+export const cancelSentFollowRequestController = asyncHandler(
+    async (req, res) => {
+        const followerId = req.user!._id;
+        const followingId = toObjectId(req.params.followingId);
+
+        const follow = await cancelSentFollowRequest(followerId, followingId);
+        res.json(
+            new ApiResponse(200, follow, "Pending follow request canceled")
+        );
     }
-    const studentId = req.user._id;
-    const followerId = new mongoose.Types.ObjectId(
-        req.params.followerId as string
-    );
+);
+
+export const removeFollowerController = asyncHandler(async (req, res) => {
+    const studentId = req.user!._id;
+    const followerId = toObjectId(req.params.followerId);
 
     const follow = await removeFollower(studentId, followerId);
     res.json(new ApiResponse(200, follow, "Follower removed successfully"));
 });
 
 export const getFollowersController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-    const followers = await getFollowers(req.user._id);
+    const followers = await getFollowers(req.user!._id);
     res.json(
         new ApiResponse(200, followers, "Followers retrieved successfully")
     );
 });
 
 export const getFollowingController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-    const following = await getFollowing(req.user._id);
+    const following = await getFollowing(req.user!._id);
     res.json(
         new ApiResponse(200, following, "Following retrieved successfully")
     );
 });
 
 export const getPendingRequestsController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-    const requests = await getPendingRequests(req.user._id);
+    const requests = await getPendingRequests(req.user!._id);
     res.json(
         new ApiResponse(
             200,
             requests,
             "Pending requests retrieved successfully"
+        )
+    );
+});
+
+export const getSentPendingRequestsController = asyncHandler(
+    async (req, res) => {
+        const requests = await getSentPendingRequests(req.user!._id);
+        res.json(
+            new ApiResponse(
+                200,
+                requests,
+                "Sent pending requests retrieved successfully"
+            )
+        );
+    }
+);
+
+export const getRelationshipController = asyncHandler(async (req, res) => {
+    const viewerId = req.user!._id;
+    const targetId = toObjectId(req.params.studentId);
+
+    const relationship = await getRelationshipState(viewerId, targetId);
+
+    res.json(
+        new ApiResponse(
+            200,
+            relationship,
+            "Relationship retrieved successfully"
         )
     );
 });

@@ -1,20 +1,11 @@
-// blockStudent   → calls blockStudent service
-// unblockStudent → calls unblockStudent service
-// getBlockList   → calls getBlockList service
+// server/src/modules/social/block.controller.ts
 
-import mongoose from "mongoose";
-import { ApiResponse, asyncHandler } from "../../shared/utils";
+import { ApiResponse, asyncHandler, toObjectId } from "../../shared/utils";
 import { blockStudent, getBlockList, unblockStudent } from "./block.service";
 
 export const blockController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-    const blockerId = req.user._id;
-    const blockedId = new mongoose.Types.ObjectId(
-        req.params.blockedId as string
-    );
+    const blockerId = req.user!._id;
+    const blockedId = toObjectId(req.params.blockedId);
 
     const block = await blockStudent(blockerId, blockedId);
 
@@ -22,15 +13,8 @@ export const blockController = asyncHandler(async (req, res) => {
 });
 
 export const unblockController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-
-    const blockerId = req.user._id;
-    const blockedId = new mongoose.Types.ObjectId(
-        req.params.blockedId as string
-    );
+    const blockerId = req.user!._id;
+    const blockedId = toObjectId(req.params.blockedId);
 
     const unblock = await unblockStudent(blockerId, blockedId);
 
@@ -38,11 +22,7 @@ export const unblockController = asyncHandler(async (req, res) => {
 });
 
 export const getBlockListController = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
-        return;
-    }
-    const blockerId = req.user._id;
+    const blockerId = req.user!._id;
     const blocks = await getBlockList(blockerId);
     res.json(new ApiResponse(200, blocks, "Block list retrieved successfully"));
 });

@@ -3,6 +3,7 @@ import passport from "../../config/passport";
 import {
     protectRoute,
     redirectIfAuthenticated,
+    requireAuth,
 } from "../../shared/middleware/auth.middleware";
 import { ApiResponse } from "../../shared/utils";
 import {
@@ -44,10 +45,15 @@ router.get("/failure", (req, res) => {
 // FIXME: Temporary get for these all for testing in browser, will change to post later when we have a frontend to test with
 router.get("/refresh", refreshToken);
 
-router.get("/logout", protectRoute, logout);
-router.get("/logout-all", protectRoute, logoutAll);
+router.get("/logout", protectRoute, requireAuth, logout);
+router.get("/logout-all", protectRoute, requireAuth, logoutAll);
 
-router.get("/sessions", protectRoute, getSessions);
-router.post("/sessions/:sessionId/logout", protectRoute, revokeSession);
+router.get("/sessions", protectRoute, requireAuth, getSessions);
+router.post(
+    "/sessions/:sessionId/logout",
+    protectRoute,
+    requireAuth,
+    revokeSession
+);
 
 export default router;

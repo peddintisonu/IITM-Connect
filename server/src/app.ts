@@ -18,7 +18,6 @@ const specs = swaggerJsdoc(swaggerOptions);
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
-
 app.get("/", protectRoute, (req, res) => {
     res.send("Welcome to IITMConnect API");
 });
@@ -26,9 +25,11 @@ app.get("/", protectRoute, (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/students", studentRoutes);
 app.use("/api/v1/social", socialRoutes);
-
 app.get("/api/v1/health", (req, res) => {
     res.json({ status: "ok", message: "IITMConnect server is running" });
+});
+app.get("/api-docs.json", (req, res) => {
+    res.json(specs);
 });
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));

@@ -77,7 +77,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
-    const student = req.user as IStudent;
+    const student = req.user! as IStudent;
     // Get current sessionId from JWT (set by protectRoute)
     const accessToken = req.cookies.accessToken;
     const currentSessionId: string | undefined = accessToken
@@ -125,7 +125,7 @@ export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
 
 // List all sessions for the current user
 export const getSessions = asyncHandler(async (req: Request, res: Response) => {
-    const student = req.user as IStudent;
+    const student = req.user! as IStudent;
     const accessToken = req.cookies.accessToken;
     const currentSessionId: string | undefined = accessToken
         ? (
@@ -144,7 +144,7 @@ export const getSessions = asyncHandler(async (req: Request, res: Response) => {
 // Revoke (logout) a specific session for the current user
 export const revokeSession = asyncHandler(
     async (req: Request, res: Response) => {
-        const student = req.user as IStudent;
+        const student = req.user! as IStudent;
         const sessionId = Array.isArray(req.params.sessionId)
             ? req.params.sessionId[0]
             : req.params.sessionId;

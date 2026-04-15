@@ -162,6 +162,49 @@
 
 /**
  * @swagger
+ * /social/follow/{followingId}/request:
+ *   delete:
+ *     summary: Cancel outgoing pending follow request
+ *     description: Cancels a pending follow request that you previously sent.
+ *     tags: [Social]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: followingId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the user or organization you sent the request to
+ *         example: "65f1234567890abcdef12345"
+ *     responses:
+ *       200:
+ *         description: Pending follow request canceled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Follow'
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       404:
+ *         description: Pending follow request not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+
+/**
+ * @swagger
  * /social/follow/{followerId}/accept:
  *   post:
  *     summary: Accept follow request
@@ -340,6 +383,37 @@
 
 /**
  * @swagger
+ * /social/follow/requests/sent:
+ *   get:
+ *     summary: Get sent pending follow requests
+ *     description: Retrieves the list of pending follow requests you have sent.
+ *     tags: [Social]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Sent pending requests retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Follow'
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+
+/**
+ * @swagger
  * /social/follow/following:
  *   get:
  *     summary: Get following
@@ -394,6 +468,67 @@
  *                         $ref: '#/components/schemas/Follow'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+
+/**
+ * @swagger
+ * /social/relationship/{studentId}:
+ *   get:
+ *     summary: Get relationship state with a student
+ *     description: Returns follow and block relationship state between the authenticated user and target student.
+ *     tags: [Social]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Target student ID
+ *         example: "65f1234567890abcdef12345"
+ *     responses:
+ *       200:
+ *         description: Relationship retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         targetId:
+ *                           type: string
+ *                         isSelf:
+ *                           type: boolean
+ *                         followingStatus:
+ *                           type: string
+ *                           enum: [none, pending, accepted, rejected]
+ *                         followsMe:
+ *                           type: boolean
+ *                         blockedByMe:
+ *                           type: boolean
+ *                         blockedMe:
+ *                           type: boolean
+ *                         canViewProfile:
+ *                           type: boolean
+ *                         canFollow:
+ *                           type: boolean
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       404:
+ *         description: Student not found
  *         content:
  *           application/json:
  *             schema:

@@ -6,7 +6,7 @@
 **Stack:** MERN + TypeScript  
 **Team:** 2 developers  
 **Start Date:** 11-04-2026  
-**Last Updated:** 14-04-2026
+**Last Updated:** 15-04-2026
 
 ---
 
@@ -250,6 +250,24 @@ Block visibility rules
 | POST   | `/api/v1/social/block/:blockedId`          | Block a student       |
 | DELETE | `/api/v1/social/block/:blockedId`          | Unblock a student     |
 | GET    | `/api/v1/social/block`                     | Get my block list     |
+
+### Next Up Routes (Pre-Org)
+
+| Module  | Method | Route                                              | Description                                |
+| ------- | ------ | -------------------------------------------------- | ------------------------------------------ |
+| Student | GET    | `/api/v1/students/search?q=&limit=&cursor=`        | Student discovery with pagination          |
+| Student | GET    | `/api/v1/students/username-availability?username=` | Username availability check                |
+| Student | DELETE | `/api/v1/students/me/photo`                        | Remove profile photo                       |
+| Student | DELETE | `/api/v1/students/me/cover`                        | Remove cover photo                         |
+| Student | GET    | `/api/v1/students/:username/mutuals`               | Mutual followers/following snapshot        |
+| Student | POST   | `/api/v1/students/me/report`                       | Report profile or abuse                    |
+| Social  | DELETE | `/api/v1/social/follow/:followingId/request`       | Cancel outgoing pending follow request     |
+| Social  | GET    | `/api/v1/social/follow/requests/sent`              | List pending outgoing follow requests      |
+| Social  | GET    | `/api/v1/social/relationship/:studentId`           | One-shot relationship state for profile UI |
+| Social  | GET    | `/api/v1/social/suggestions`                       | Suggested people/accounts to follow        |
+| Core    | GET    | `/api/v1/meta/hostels`                             | Hostel lookup for forms and filters        |
+| Core    | GET    | `/api/v1/meta/departments`                         | Department lookup for forms and filters    |
+| Core    | GET    | `/api/v1/meta/courses`                             | Course lookup for forms and filters        |
 
 ---
 

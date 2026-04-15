@@ -243,7 +243,19 @@
 
 - [ ] Auth module — rate limiting, sliding session expiry, session cleanup polish
 - [ ] Core module — lookup endpoints for master data and seed validation checks
-- [ ] Student module — search/discovery endpoints and query indexes
+- [ ] Student module — add `GET /api/v1/students/search?q=&limit=&cursor=`
+- [ ] Student module — add `GET /api/v1/students/username-availability?username=`
+- [ ] Student module — add `DELETE /api/v1/students/me/photo`
+- [ ] Student module — add `DELETE /api/v1/students/me/cover`
+- [ ] Student module — add `GET /api/v1/students/:username/mutuals`
+- [ ] Student module — add `POST /api/v1/students/me/report`
+- [ ] Social module — add `DELETE /api/v1/social/follow/:followingId/request` (cancel outgoing pending request)
+- [ ] Social module — add `GET /api/v1/social/follow/requests/sent`
+- [ ] Social module — add `GET /api/v1/social/relationship/:studentId`
+- [ ] Social module — add `GET /api/v1/social/suggestions`
+- [ ] Core module — add `GET /api/v1/meta/hostels`
+- [ ] Core module — add `GET /api/v1/meta/departments`
+- [ ] Core module — add `GET /api/v1/meta/courses`
 - [ ] Social module — notification hooks for follow/block actions
 - [ ] Org module — base models and routes for organisation + POR system
 

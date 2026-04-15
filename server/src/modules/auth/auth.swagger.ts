@@ -134,20 +134,20 @@
  * /auth/google/callback:
  *   get:
  *     summary: Google OAuth Callback
- *     description: Handles the redirection from Google. Sets httpOnly cookies (accessToken, refreshToken).
+ *     description: Handles the redirection from Google, sets auth cookies, and redirects to the app home page.
  *     tags: [Auth]
  *     responses:
- *       200:
- *         description: Login successful
- *         content:
- *           application/json:
+ *       302:
+ *         description: Authentication successful, cookies set, and redirected
+ *         headers:
+ *           Set-Cookie:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Student'
+ *               type: string
+ *             description: httpOnly access and refresh token cookies
+ *           Location:
+ *             schema:
+ *               type: string
+ *             description: Redirect target URL
  *       401:
  *         description: Authentication failed
  *         content:
@@ -158,8 +158,24 @@
 
 /**
  * @swagger
+ * /auth/failure:
+ *   get:
+ *     summary: OAuth failure handler
+ *     description: Returned when Google OAuth fails or uses a non-allowed account.
+ *     tags: [Auth]
+ *     responses:
+ *       401:
+ *         description: Authentication failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
  * /auth/refresh:
- *   post:
+ *   get:
  *     summary: Refresh Access Token
  *     tags: [Auth]
  *     security:

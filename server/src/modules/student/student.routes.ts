@@ -1,7 +1,10 @@
 // server/src/modules/student/student.routes.ts
 
 import { Router } from "express";
-import { protectRoute } from "../../shared/middleware/auth.middleware";
+import {
+    protectRoute,
+    requireAuth,
+} from "../../shared/middleware/auth.middleware";
 import {
     uploadCoverImage,
     uploadProfileImage,
@@ -19,14 +22,26 @@ import {
 
 const router = Router();
 
-router.patch("/onboarding", protectRoute, onboard);
-router.get("/me", protectRoute, getMe);
-router.patch("/me/profile", protectRoute, updateProfile);
-router.patch("/me/photo", protectRoute, uploadProfileImage, updateProfilePhoto);
-router.patch("/me/cover", protectRoute, uploadCoverImage, updateCoverPhoto);
-router.patch("/me/hostel", protectRoute, updateHostel);
-router.patch("/me/privacy", protectRoute, updatePrivacy);
+router.patch("/onboarding", protectRoute, requireAuth, onboard);
+router.get("/me", protectRoute, requireAuth, getMe);
+router.patch("/me/profile", protectRoute, requireAuth, updateProfile);
+router.patch(
+    "/me/photo",
+    protectRoute,
+    requireAuth,
+    uploadProfileImage,
+    updateProfilePhoto
+);
+router.patch(
+    "/me/cover",
+    protectRoute,
+    requireAuth,
+    uploadCoverImage,
+    updateCoverPhoto
+);
+router.patch("/me/hostel", protectRoute, requireAuth, updateHostel);
+router.patch("/me/privacy", protectRoute, requireAuth, updatePrivacy);
 
-router.get("/:username", protectRoute, getStudentProfile);
+router.get("/:username", protectRoute, requireAuth, getStudentProfile);
 
 export default router;
