@@ -143,6 +143,13 @@ const studentSchema = new mongoose.Schema<IStudent>(
     { timestamps: true }
 );
 
+studentSchema.index({ status: 1, isOnboarded: 1, username: 1, _id: 1 });
+studentSchema.index({ status: 1, isOnboarded: 1, displayName: 1, _id: 1 });
+studentSchema.index({ status: 1, isOnboarded: 1, currentDeptId: 1, _id: 1 });
+studentSchema.index({ status: 1, isOnboarded: 1, currentHostelId: 1, _id: 1 });
+studentSchema.index({ status: 1, isOnboarded: 1, currentCourseId: 1, _id: 1 });
+studentSchema.index({ status: 1, isOnboarded: 1, currentBatch: 1, _id: 1 });
+
 studentSchema.methods.incrementTokenVersion = async function () {
     this.tokenVersion += 1;
     await this.save();

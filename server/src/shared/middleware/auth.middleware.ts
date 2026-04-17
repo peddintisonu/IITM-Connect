@@ -22,8 +22,32 @@ export const protectRoute = asyncHandler(async (req, res, next) => {
     if (!student) throw new ApiError(401, "Student not found");
     if (!session)
         throw new ApiError(401, "Session expired, please login again");
+    if (session.endedAt)
+        throw new ApiError(401, "Session ended, please login again");
     if (session.revoked)
         throw new ApiError(401, "Session revoked, please login again");
+    if (session.expiresAt <= new Date()) {
+        const endedAt = new Date();
+        await Session.updateOne(
+            { _id: session._id, endedAt: { $exists: false } },
+            {
+                $set: {
+                    endedAt,
+                    endReason: "expired",
+                    deletesAt: new Date(
+                        endedAt.getTime() + 30 * 24 * 60 * 60 * 1000
+                    ),
+                    lastAccessedAt: endedAt,
+                },
+                $unset: {
+                    refreshToken: "",
+                    previousRefreshToken: "",
+                    graceExpiresAt: "",
+                },
+            }
+        );
+        throw new ApiError(401, "Session expired, please login again");
+    }
 
     if (decoded.tokenVersion !== student.tokenVersion) {
         throw new ApiError(401, "Token invalidated, please login again");
@@ -55,6 +79,9 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
 
         if (!student) return next();
         if (!session) return next();
+        if (session.endedAt) return next();
+        if (session.revoked) return next();
+        if (session.expiresAt <= new Date()) return next();
         if (decoded.tokenVersion !== student.tokenVersion) return next();
 
         return res.redirect("/");

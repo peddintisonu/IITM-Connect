@@ -43,7 +43,15 @@
  *         links:
  *           type: array
  *           items:
- *             $ref: '#/components/schemas/Link'
+ *             type: object
+ *             properties:
+ *               label:
+ *                 type: string
+ *                 example: "LinkedIn"
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 example: "https://linkedin.com/in/username"
  *         interests:
  *           type: array
  *           items:
@@ -86,11 +94,28 @@
  *         rollNoHistory:
  *           type: array
  *           items:
- *             $ref: '#/components/schemas/RollNoHistory'
+ *             type: object
+ *             properties:
+ *               rollNo:
+ *                 type: string
+ *                 example: "cs24b001"
+ *               updatedAt:
+ *                 type: string
+ *                 format: date-time
  *         hostelHistory:
  *           type: array
  *           items:
- *             $ref: '#/components/schemas/HostelHistory'
+ *             type: object
+ *             properties:
+ *               hostelId:
+ *                 type: string
+ *                 example: "65f1234567890abcdef12345"
+ *               roomNo:
+ *                 type: number
+ *                 example: 302
+ *               updatedAt:
+ *                 type: string
+ *                 format: date-time
  *         status:
  *           type: string
  *           enum: [active, inactive, suspended]

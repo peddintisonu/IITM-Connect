@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { UAParser } from "ua-parser-js";
 import { ENV } from "../../config/env";
 import {
     accessCookieOptions,
@@ -18,6 +17,7 @@ import {
     refreshAccessToken,
     revokeSession as revokeSessionService,
 } from "./auth.service";
+import { buildSessionContext, type SessionContext } from "./auth.utils";
 import Session from "./session.model";
 
 const clearAuthCookies = (res: Response) => {
@@ -30,20 +30,10 @@ export const googleCallback = asyncHandler(
         const student = req.user as IStudent;
         if (!student) throw new ApiError(401, "Authentication failed");
 
-        const parser = new UAParser(req.headers["user-agent"]);
-        const result = parser.getResult();
-        const deviceInfo = `${result.browser.name} on ${result.os.name}`;
-
-        const ipAddress =
-            req.headers["x-forwarded-for"]?.toString().split(",")[0] ||
-            req.socket.remoteAddress ||
-            "unknown";
-        const userAgent = req.headers["user-agent"] || "unknown";
+        const sessionContext = buildSessionContext(req);
         const { accessToken, refreshToken } = await generateTokens(
             student,
-            deviceInfo,
-            ipAddress,
-            userAgent
+            sessionContext
         );
 
         res.cookie("accessToken", accessToken, accessCookieOptions)
@@ -57,8 +47,10 @@ export const refreshToken = asyncHandler(
         const token = req.cookies.refreshToken;
         if (!token) throw new ApiError(401, "No refresh token provided");
 
+        const sessionContext = buildSessionContext(req);
+
         const { accessToken, refreshToken: newRefreshToken } =
-            await refreshAccessToken(token);
+            await refreshAccessToken(token, sessionContext);
 
         res.cookie("accessToken", accessToken, accessCookieOptions)
             .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
@@ -95,19 +87,19 @@ export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
         ? await Session.findById(currentSessionId)
         : null;
 
-    const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
-        await generateTokens(
-            student,
-            currentSession?.deviceInfo || "Unknown Device",
-            currentSession?.ipAddress || req.ip,
-            currentSession?.userAgent || req.headers["user-agent"] || "unknown"
-        );
+    const currentSessionContext: SessionContext = currentSession
+        ? {
+              deviceInfo: currentSession.deviceInfo || "Unknown Device",
+              userAgent: currentSession.userAgent || "unknown",
+              currentLocation: currentSession.currentLocation ?? {
+                  ip: currentSession.initialLocation?.ip || req.ip || "unknown",
+              },
+          }
+        : buildSessionContext(req);
 
-    res.cookie("accessToken", newAccessToken, accessCookieOptions).cookie(
-        "refreshToken",
-        newRefreshToken,
-        refreshCookieOptions
-    );
+    const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+        await generateTokens(student, currentSessionContext);
+
     // Set cookies for current session
     res.cookie("accessToken", newAccessToken, accessCookieOptions).cookie(
         "refreshToken",

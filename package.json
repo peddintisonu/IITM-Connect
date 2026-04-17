@@ -15,7 +15,7 @@
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"format": "prettier --write .",
-		"clean": "npm run clean -ws --if-present && rimraf node_modules",
+		"clean": "npm run clean --workspaces --if-present && rimraf node_modules",
 		"reinstall": "rimraf node_modules package-lock.json && npm install"
 	},
 	"author": "Siva Peddinti",
@@ -37,7 +37,7 @@
 		"eslint-plugin-prettier": "^5.x",
 		"globals": "^17.4.0",
 		"prettier": "^3.x",
-		"rimraf": "^6.x",
+		"rimraf": "^6.1.3",
 		"typescript": "^6.x"
 	}
 }

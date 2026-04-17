@@ -3,13 +3,11 @@
 import { ZodError, ZodTypeAny, z } from "zod";
 import { ApiError } from "./ApiError";
 
-export const parseValidationErrors = (error: ZodError): string => {
-    const errors = Object.entries(error.flatten().fieldErrors)
-        .map(
-            ([field, messages]) =>
-                `${field}: ${(messages as string[] | undefined)?.join(", ")}`
-        )
-        .join("; ");
+export const parseValidationErrors = (error: ZodError): string[] => {
+    const errors = Object.entries(error.flatten().fieldErrors).map(
+        ([field, messages]) =>
+            `${field}: ${(messages as string[] | undefined)?.join(", ")}`
+    );
     return errors;
 };
 
@@ -20,7 +18,7 @@ export const validateAndParse = <T extends ZodTypeAny>(
     const parsed = schema.safeParse(data);
     if (!parsed.success) {
         const errors = parseValidationErrors(parsed.error);
-        throw new ApiError(400, errors);
+        throw new ApiError(400, "Validation failed", errors);
     }
     return parsed.data;
 };

@@ -1,21 +1,28 @@
 import mongoose from "mongoose";
 
-interface ISession {
-    userId: mongoose.Types.ObjectId; // Reference to the User model
-    refreshToken: string;
-    deviceInfo?: string; // Optional field to store device information
-    expiresAt: Date;
-    lastAccessedAt?: Date;
-    ipAddress?: string;
-    userAgent?: string;
-    revoked?: boolean;
+interface ILocationInfo {
+    ip?: string;
+    city?: string;
+    country?: string;
 }
 
-// TODO: Add more fields to the session model, such as IP address, user agent, etc., for better security and tracking.
-// Also consider adding a field for the session's creation time and last accessed time to help with session management and security.
-// For example:
-// - ipAddress: { type: String }
-// - userAgent: { type: String }
+interface ISession {
+    userId: mongoose.Types.ObjectId;
+    refreshToken: string;
+    previousRefreshToken?: string;
+    deviceInfo?: string;
+    expiresAt: Date;
+    lastAccessedAt?: Date;
+    initialLocation?: ILocationInfo;
+    currentLocation?: ILocationInfo;
+    userAgent?: string;
+    rotatedAt?: Date;
+    graceExpiresAt?: Date;
+    endedAt?: Date;
+    endReason?: "logout" | "expired" | "revoked";
+    deletesAt?: Date;
+    revoked?: boolean;
+}
 
 const sessionSchema = new mongoose.Schema<ISession>(
     {
@@ -25,19 +32,39 @@ const sessionSchema = new mongoose.Schema<ISession>(
             required: true,
         },
         refreshToken: { type: String, required: true },
+        previousRefreshToken: { type: String },
         deviceInfo: { type: String },
         expiresAt: { type: Date, required: true },
         lastAccessedAt: { type: Date, default: Date.now },
-        ipAddress: { type: String },
+        initialLocation: {
+            ip: { type: String },
+            city: { type: String },
+            country: { type: String },
+        },
+        currentLocation: {
+            ip: { type: String },
+            city: { type: String },
+            country: { type: String },
+        },
         userAgent: { type: String },
+        rotatedAt: { type: Date },
+        graceExpiresAt: { type: Date },
+        endedAt: { type: Date },
+        endReason: {
+            type: String,
+            enum: ["logout", "expired", "revoked"],
+        },
+        deletesAt: { type: Date },
         revoked: { type: Boolean, default: false },
     },
     {
-        timestamps: true, // adds createdAt and updatedAt automatically
+        timestamps: true,
     }
 );
 
+// TODO: Add indexes for efficient querying and automatic cleanup of expired sessions, add logic for diff revokation types (logout, expired, revoked)
 sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+sessionSchema.index({ deletesAt: 1 }, { expireAfterSeconds: 0, sparse: true });
 sessionSchema.index({ userId: 1 });
 
 const Session = mongoose.model<ISession>("Session", sessionSchema);
