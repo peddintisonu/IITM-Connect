@@ -2,39 +2,75 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import { ENV } from "../../config/env";
-import { tokenExpiry } from "../../shared/constants/auth.constants";
+import {
+    authErrorMessages,
+    defaultSessionValues,
+    sessionLifetime,
+    tokenExpiry,
+} from "../../shared/constants/auth.constants";
 import { ApiError } from "../../shared/utils";
 import Student, { IStudent } from "../student/student.model";
-import type { SessionContext } from "./auth.utils";
+import {
+    decodeRefreshToken,
+    endSession,
+    type SessionContext,
+} from "./auth.utils";
 import Session from "./session.model";
 
-const SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const hashToken = (token: string) =>
+    crypto.createHash("sha256").update(token).digest("hex");
 
-const buildDeleteAt = (endedAt: Date) =>
-    new Date(endedAt.getTime() + SESSION_RETENTION_MS);
+const buildTokenPayload = (student: IStudent, sessionId: string) => ({
+    studentId: student._id,
+    tokenVersion: student.tokenVersion,
+    sessionId,
+});
 
-const finalizeSessionEnd = async (
-    sessionId: string,
-    reason: "logout" | "expired" | "revoked",
-    endedAt = new Date()
+const signTokenPair = (student: IStudent, sessionId: string) => {
+    const payload = buildTokenPayload(student, sessionId);
+
+    const accessToken = jwt.sign(payload, ENV.ACCESS_TOKEN_SECRET, {
+        expiresIn: tokenExpiry.accessToken,
+    });
+
+    const refreshToken = jwt.sign(payload, ENV.REFRESH_TOKEN_SECRET, {
+        expiresIn: tokenExpiry.refreshToken,
+    });
+
+    return { accessToken, refreshToken };
+};
+
+const setNewRefreshTokenState = (
+    session: typeof Session.prototype,
+    refreshToken: string
 ) => {
-    await Session.updateOne(
-        { _id: sessionId, endedAt: { $exists: false } },
-        {
-            $set: {
-                endedAt,
-                endReason: reason,
-                deletesAt: buildDeleteAt(endedAt),
-                revoked: reason === "revoked",
-                lastAccessedAt: endedAt,
-            },
-            $unset: {
-                refreshToken: "",
-                previousRefreshToken: "",
-                graceExpiresAt: "",
-            },
-        }
+    session.previousRefreshToken = session.refreshToken;
+    session.refreshToken = hashToken(refreshToken);
+    session.rotatedAt = new Date();
+    session.expiresAt = new Date(Date.now() + tokenExpiry.refreshToken * 1000);
+    session.graceExpiresAt = new Date(
+        Date.now() + sessionLifetime.gracePeriodMs
     );
+};
+
+export const rotateExistingSessionTokens = async (
+    session: typeof Session.prototype,
+    student: IStudent,
+    sessionContext?: SessionContext
+) => {
+    if (sessionContext) {
+        session.deviceInfo = sessionContext.deviceInfo ?? session.deviceInfo;
+        session.userAgent = sessionContext.userAgent ?? session.userAgent;
+        session.currentLocation = sessionContext.currentLocation;
+        session.lastAccessedAt = new Date();
+    }
+
+    const { accessToken, refreshToken } = signTokenPair(student, session.id);
+    setNewRefreshTokenState(session, refreshToken);
+
+    await session.save();
+
+    return { accessToken, refreshToken };
 };
 
 export const generateTokens = async (
@@ -45,7 +81,8 @@ export const generateTokens = async (
 
     const session = new Session({
         userId: student._id,
-        deviceInfo: sessionContext?.deviceInfo || "Unknown Device",
+        deviceInfo:
+            sessionContext?.deviceInfo || defaultSessionValues.deviceInfo,
         expiresAt: new Date(Date.now() + tokenExpiry.refreshToken * 1000),
         currentLocation,
         initialLocation: currentLocation,
@@ -53,136 +90,69 @@ export const generateTokens = async (
         lastAccessedAt: new Date(),
     });
 
-    const payload = {
-        studentId: student._id,
-        tokenVersion: student.tokenVersion,
-        sessionId: session._id,
-    };
-
-    const accessToken = jwt.sign(payload, ENV.ACCESS_TOKEN_SECRET, {
-        expiresIn: tokenExpiry.accessToken,
-    });
-
-    const refreshToken = jwt.sign(payload, ENV.REFRESH_TOKEN_SECRET, {
-        expiresIn: tokenExpiry.refreshToken,
-    });
-
-    session.refreshToken = crypto
-        .createHash("sha256")
-        .update(refreshToken)
-        .digest("hex");
+    const tokenPair = signTokenPair(student, session.id);
+    session.refreshToken = hashToken(tokenPair.refreshToken);
 
     await session.save();
 
-    return { accessToken, refreshToken };
+    return tokenPair;
 };
 
 export const refreshAccessToken = async (
     refreshToken: string,
     sessionContext?: SessionContext
 ) => {
-    try {
-        const decoded = jwt.verify(refreshToken, ENV.REFRESH_TOKEN_SECRET) as {
-            studentId: string;
-            tokenVersion: number;
-            sessionId: string;
-        };
+    const decoded = decodeRefreshToken(refreshToken);
 
-        const session = await Session.findById(decoded.sessionId);
-        if (!session) {
-            throw new ApiError(401, "Session expired, please login again");
-        }
-        if (session.endedAt) {
-            throw new ApiError(401, "Session ended, please login again");
-        }
-        if (session.revoked) {
-            throw new ApiError(401, "Session revoked, please login again");
-        }
-        if (session.expiresAt <= new Date()) {
-            await finalizeSessionEnd(session.id, "expired", new Date());
-            throw new ApiError(401, "Session expired, please login again");
-        }
-
-        const hashedToken = crypto
-            .createHash("sha256")
-            .update(refreshToken)
-            .digest("hex");
-
-        const isCurrentRefreshToken = session.refreshToken === hashedToken;
-        const isPreviousRefreshTokenInGraceWindow =
-            session.previousRefreshToken === hashedToken &&
-            !!session.graceExpiresAt &&
-            session.graceExpiresAt > new Date();
-
-        if (!isCurrentRefreshToken && !isPreviousRefreshTokenInGraceWindow) {
-            throw new ApiError(401, "Invalid refresh token");
-        }
-
-        const student = await Student.findById(decoded.studentId);
-        if (!student) {
-            throw new ApiError(401, "Student not found");
-        }
-
-        if (decoded.tokenVersion !== student.tokenVersion) {
-            throw new ApiError(401, "Token invalidated, please login again");
-        }
-
-        if (sessionContext) {
-            session.deviceInfo =
-                sessionContext.deviceInfo ?? session.deviceInfo;
-            session.userAgent = sessionContext.userAgent ?? session.userAgent;
-            session.currentLocation = sessionContext.currentLocation;
-            session.lastAccessedAt = new Date();
-        }
-
-        const payload = {
-            studentId: student._id,
-            tokenVersion: student.tokenVersion,
-            sessionId: session._id,
-        };
-
-        const accessToken = jwt.sign(payload, ENV.ACCESS_TOKEN_SECRET, {
-            expiresIn: tokenExpiry.accessToken,
-        });
-
-        const newRefreshToken = jwt.sign(payload, ENV.REFRESH_TOKEN_SECRET, {
-            expiresIn: tokenExpiry.refreshToken,
-        });
-
-        session.previousRefreshToken = session.refreshToken;
-        session.refreshToken = crypto
-            .createHash("sha256")
-            .update(newRefreshToken)
-            .digest("hex");
-        session.rotatedAt = new Date();
-        session.expiresAt = new Date(
-            Date.now() + tokenExpiry.refreshToken * 1000
-        );
-        session.graceExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
-        await session.save();
-
-        return { accessToken, refreshToken: newRefreshToken };
-    } catch (error) {
-        if (error instanceof ApiError) throw error;
-        throw new ApiError(401, "Invalid refresh token");
+    const session = await Session.findById(decoded.sessionId);
+    if (!session) {
+        throw new ApiError(401, authErrorMessages.sessionExpired);
     }
+    if (session.endedAt) {
+        throw new ApiError(401, authErrorMessages.sessionEnded);
+    }
+
+    const sessionExpired = session.expiresAt <= new Date();
+    if (sessionExpired) {
+        await endSession(session.id, "expired", new Date());
+        throw new ApiError(401, authErrorMessages.sessionExpired);
+    }
+
+    const hashedToken = crypto
+        .createHash("sha256")
+        .update(refreshToken)
+        .digest("hex");
+
+    const isCurrentRefreshToken = session.refreshToken === hashedToken;
+    const isPreviousRefreshTokenInGraceWindow =
+        session.previousRefreshToken === hashedToken &&
+        !!session.graceExpiresAt &&
+        session.graceExpiresAt > new Date();
+
+    if (!isCurrentRefreshToken && !isPreviousRefreshTokenInGraceWindow) {
+        throw new ApiError(401, authErrorMessages.invalidRefreshToken);
+    }
+
+    const student = await Student.findById(decoded.studentId);
+    if (!student) {
+        throw new ApiError(401, authErrorMessages.studentNotFound);
+    }
+
+    if (decoded.tokenVersion !== student.tokenVersion) {
+        throw new ApiError(401, authErrorMessages.tokenInvalidated);
+    }
+
+    return rotateExistingSessionTokens(session, student, sessionContext);
 };
 
 export const logoutOne = async (refreshToken: string) => {
-    try {
-        const decoded = jwt.verify(refreshToken, ENV.REFRESH_TOKEN_SECRET) as {
-            sessionId: string;
-        };
+    const decoded = decodeRefreshToken(refreshToken);
 
-        const session = await Session.findById(decoded.sessionId);
-        if (!session) {
-            throw new ApiError(400, "Session not found");
-        }
-        await finalizeSessionEnd(session.id, "logout", new Date());
-    } catch (error) {
-        if (error instanceof ApiError) throw error;
-        throw new ApiError(400, "Invalid refresh token");
+    const session = await Session.findById(decoded.sessionId);
+    if (!session) {
+        throw new ApiError(400, authErrorMessages.sessionNotFound);
     }
+    await endSession(session.id, "logout", new Date());
 };
 
 export const logoutAll = async (
@@ -203,7 +173,7 @@ export const logoutAll = async (
             revoked: true,
             endedAt: now,
             endReason: "revoked",
-            deletesAt: buildDeleteAt(now),
+            deletesAt: new Date(now.getTime() + sessionLifetime.retentionMs),
             lastAccessedAt: now,
         },
         $unset: {
@@ -231,9 +201,9 @@ export const listSessionsForUser = async (
 // Revoke (logout) a specific session for a user
 export const revokeSession = async (userId: string, sessionId: string) => {
     const session = await Session.findOne({ _id: sessionId, userId });
-    if (!session) throw new ApiError(404, "Session not found");
+    if (!session) throw new ApiError(404, authErrorMessages.sessionNotFound);
     if (session.endedAt || session.revoked) return;
-    await finalizeSessionEnd(session.id, "revoked", new Date());
+    await endSession(session.id, "revoked", new Date());
 };
 
 // TODO: Implement audit logging for authentication events (login, logout, refresh, session revoke, etc.)

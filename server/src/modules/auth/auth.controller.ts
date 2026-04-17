@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import { ENV } from "../../config/env";
 import {
     accessCookieOptions,
+    authErrorMessages,
+    authRouteMessages,
     refreshCookieOptions,
 } from "../../shared/constants/auth.constants";
 import { ApiError } from "../../shared/utils/ApiError";
@@ -16,8 +16,14 @@ import {
     logoutOne,
     refreshAccessToken,
     revokeSession as revokeSessionService,
+    rotateExistingSessionTokens,
 } from "./auth.service";
-import { buildSessionContext, type SessionContext } from "./auth.utils";
+import {
+    buildSessionContext,
+    buildSessionContextFromExistingSession,
+    getSessionIdFromAccessToken,
+    type SessionContext,
+} from "./auth.utils";
 import Session from "./session.model";
 
 const clearAuthCookies = (res: Response) => {
@@ -28,7 +34,7 @@ const clearAuthCookies = (res: Response) => {
 export const googleCallback = asyncHandler(
     async (req: Request, res: Response) => {
         const student = req.user as IStudent;
-        if (!student) throw new ApiError(401, "Authentication failed");
+        if (!student) throw new ApiError(401, authErrorMessages.unauthorized);
 
         const sessionContext = buildSessionContext(req);
         const { accessToken, refreshToken } = await generateTokens(
@@ -45,7 +51,7 @@ export const googleCallback = asyncHandler(
 export const refreshToken = asyncHandler(
     async (req: Request, res: Response) => {
         const token = req.cookies.refreshToken;
-        if (!token) throw new ApiError(401, "No refresh token provided");
+        if (!token) throw new ApiError(401, authErrorMessages.noRefreshToken);
 
         const sessionContext = buildSessionContext(req);
 
@@ -54,30 +60,25 @@ export const refreshToken = asyncHandler(
 
         res.cookie("accessToken", accessToken, accessCookieOptions)
             .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
-            .json(new ApiResponse(200, null, "Token refreshed successfully"));
+            .json(new ApiResponse(200, null, authRouteMessages.tokenRefreshed));
     }
 );
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
     const token = req.cookies.refreshToken;
-    if (!token) throw new ApiError(401, "No refresh token provided");
+    if (!token) throw new ApiError(401, authErrorMessages.noRefreshToken);
 
     await logoutOne(token);
     clearAuthCookies(res);
 
-    res.json(new ApiResponse(200, null, "Logged out successfully"));
+    res.json(new ApiResponse(200, null, authRouteMessages.loggedOut));
 });
 
 export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
     const student = req.user! as IStudent;
-    // Get current sessionId from JWT (set by protectRoute)
     const accessToken = req.cookies.accessToken;
-    const currentSessionId: string | undefined = accessToken
-        ? (
-              jwt.verify(accessToken, ENV.ACCESS_TOKEN_SECRET) as {
-                  sessionId: string;
-              }
-          ).sessionId
+    const currentSessionId = accessToken
+        ? getSessionIdFromAccessToken(accessToken)
         : undefined;
 
     await logoutAllSessions(student._id.toString(), currentSessionId);
@@ -87,18 +88,19 @@ export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
         ? await Session.findById(currentSessionId)
         : null;
 
-    const currentSessionContext: SessionContext = currentSession
-        ? {
-              deviceInfo: currentSession.deviceInfo || "Unknown Device",
-              userAgent: currentSession.userAgent || "unknown",
-              currentLocation: currentSession.currentLocation ?? {
-                  ip: currentSession.initialLocation?.ip || req.ip || "unknown",
-              },
-          }
-        : buildSessionContext(req);
+    if (!currentSession) {
+        throw new ApiError(401, authErrorMessages.sessionExpired);
+    }
+
+    const currentSessionContext: SessionContext =
+        buildSessionContextFromExistingSession(currentSession, req);
 
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
-        await generateTokens(student, currentSessionContext);
+        await rotateExistingSessionTokens(
+            currentSession,
+            student,
+            currentSessionContext
+        );
 
     // Set cookies for current session
     res.cookie("accessToken", newAccessToken, accessCookieOptions).cookie(
@@ -106,31 +108,21 @@ export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
         newRefreshToken,
         refreshCookieOptions
     );
-    res.json(
-        new ApiResponse(
-            200,
-            null,
-            "Logged out of all devices except this one successfully"
-        )
-    );
+    res.json(new ApiResponse(200, null, authRouteMessages.loggedOutAll));
 });
 
 // List all sessions for the current user
 export const getSessions = asyncHandler(async (req: Request, res: Response) => {
     const student = req.user! as IStudent;
     const accessToken = req.cookies.accessToken;
-    const currentSessionId: string | undefined = accessToken
-        ? (
-              jwt.verify(accessToken, ENV.ACCESS_TOKEN_SECRET) as {
-                  sessionId: string;
-              }
-          ).sessionId
+    const currentSessionId = accessToken
+        ? getSessionIdFromAccessToken(accessToken)
         : undefined;
     const result = await listSessionsForUser(
         student._id.toString(),
         currentSessionId
     );
-    res.json(new ApiResponse(200, result, "Sessions fetched successfully"));
+    res.json(new ApiResponse(200, result, authRouteMessages.sessionsFetched));
 });
 
 // Revoke (logout) a specific session for the current user
@@ -142,6 +134,6 @@ export const revokeSession = asyncHandler(
             : req.params.sessionId;
         await revokeSessionService(student._id.toString(), sessionId);
 
-        res.json(new ApiResponse(200, null, "Session revoked successfully"));
+        res.json(new ApiResponse(200, null, authRouteMessages.sessionRevoked));
     }
 );

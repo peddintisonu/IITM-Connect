@@ -11,9 +11,24 @@
  *         deviceInfo:
  *           type: string
  *           description: Device info (browser and OS)
- *         ipAddress:
- *           type: string
- *           description: IP address used for this session
+ *         initialLocation:
+ *           type: object
+ *           properties:
+ *             ip:
+ *               type: string
+ *             city:
+ *               type: string
+ *             country:
+ *               type: string
+ *         currentLocation:
+ *           type: object
+ *           properties:
+ *             ip:
+ *               type: string
+ *             city:
+ *               type: string
+ *             country:
+ *               type: string
  *         userAgent:
  *           type: string
  *           description: User agent string
@@ -29,6 +44,17 @@
  *           type: string
  *           format: date-time
  *           description: Session expiry time
+ *         endedAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the session ended
+ *         endReason:
+ *           type: string
+ *           description: Why the session ended
+ *         deletesAt:
+ *           type: string
+ *           format: date-time
+ *           description: When the ended session is hard-deleted
  *         revoked:
  *           type: boolean
  *           description: Whether this session is revoked (logged out)
@@ -188,7 +214,7 @@
 /**
  * @swagger
  * /auth/logout:
- *   get:
+ *   post:
  *     summary: Logout from current device
  *     tags: [Auth]
  *     security:
@@ -201,7 +227,7 @@
 /**
  * @swagger
  * /auth/logout-all:
- *   get:
+ *   post:
  *     summary: Logout from all devices
  *     description: Increments tokenVersion and clears all sessions.
  *     tags: [Auth]

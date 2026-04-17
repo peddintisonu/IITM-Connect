@@ -1,56 +1,33 @@
-import jwt from "jsonwebtoken";
-import { ENV } from "../../config/env";
+import { decodeAccessToken, endSession } from "../../modules/auth/auth.utils";
 import Session from "../../modules/auth/session.model";
 import Student from "../../modules/student/student.model";
+import { authErrorMessages } from "../constants/auth.constants";
 import { ApiError, asyncHandler } from "../utils";
 
 export const protectRoute = asyncHandler(async (req, res, next) => {
     const accessToken = req.cookies.accessToken;
-    if (!accessToken) throw new ApiError(401, "No access token provided");
+    if (!accessToken) throw new ApiError(401, authErrorMessages.noAccessToken);
 
-    const decoded = jwt.verify(accessToken, ENV.ACCESS_TOKEN_SECRET) as {
-        studentId: string;
-        tokenVersion: number;
-        sessionId: string;
-    };
+    const decoded = decodeAccessToken(accessToken);
 
     const [student, session] = await Promise.all([
         Student.findById(decoded.studentId).select("-__v"),
         Session.findById(decoded.sessionId),
     ]);
 
-    if (!student) throw new ApiError(401, "Student not found");
-    if (!session)
-        throw new ApiError(401, "Session expired, please login again");
+    if (!student) throw new ApiError(401, authErrorMessages.studentNotFound);
+    if (!session) throw new ApiError(401, authErrorMessages.sessionExpired);
     if (session.endedAt)
-        throw new ApiError(401, "Session ended, please login again");
+        throw new ApiError(401, authErrorMessages.sessionEnded);
     if (session.revoked)
-        throw new ApiError(401, "Session revoked, please login again");
+        throw new ApiError(401, authErrorMessages.sessionRevoked);
     if (session.expiresAt <= new Date()) {
-        const endedAt = new Date();
-        await Session.updateOne(
-            { _id: session._id, endedAt: { $exists: false } },
-            {
-                $set: {
-                    endedAt,
-                    endReason: "expired",
-                    deletesAt: new Date(
-                        endedAt.getTime() + 30 * 24 * 60 * 60 * 1000
-                    ),
-                    lastAccessedAt: endedAt,
-                },
-                $unset: {
-                    refreshToken: "",
-                    previousRefreshToken: "",
-                    graceExpiresAt: "",
-                },
-            }
-        );
-        throw new ApiError(401, "Session expired, please login again");
+        await endSession(session._id.toString(), "expired", new Date());
+        throw new ApiError(401, authErrorMessages.sessionExpired);
     }
 
     if (decoded.tokenVersion !== student.tokenVersion) {
-        throw new ApiError(401, "Token invalidated, please login again");
+        throw new ApiError(401, authErrorMessages.tokenInvalidated);
     }
 
     // Update lastAccessedAt for the session
@@ -66,11 +43,7 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
     if (!accessToken) return next();
 
     try {
-        const decoded = jwt.verify(accessToken, ENV.ACCESS_TOKEN_SECRET) as {
-            studentId: string;
-            tokenVersion: number;
-            sessionId: string;
-        };
+        const decoded = decodeAccessToken(accessToken);
 
         const [student, session] = await Promise.all([
             Student.findById(decoded.studentId),
@@ -92,7 +65,7 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
 
 export const requireAuth = asyncHandler(async (req, res, next) => {
     if (!req.user) {
-        throw new ApiError(401, "Unauthorized");
+        throw new ApiError(401, authErrorMessages.unauthorized);
     }
     next();
 });

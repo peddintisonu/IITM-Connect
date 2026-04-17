@@ -5,6 +5,7 @@ import {
     redirectIfAuthenticated,
     requireAuth,
 } from "../../shared/middleware/auth.middleware";
+import { authRouteMessages } from "../../shared/constants/auth.constants";
 import { ApiResponse } from "../../shared/utils";
 import {
     getSessions,
@@ -34,19 +35,15 @@ router.get(
 
 router.get("/failure", (req, res) => {
     res.status(401).json(
-        new ApiResponse(
-            401,
-            null,
-            "Authentication failed — smail accounts only"
-        )
+        new ApiResponse(401, null, authRouteMessages.authenticationFailed)
     );
 });
 
-// FIXME: Temporary get for these all for testing in browser, will change to post later when we have a frontend to test with
+// FIXME: intentionally using GET to refresh tokens from browser, but should ideally be POST since it modifies state (refreshes tokens and updates session info)
 router.get("/refresh", refreshToken);
 
 router.get("/logout", protectRoute, requireAuth, logout);
-router.get("/logout-all", protectRoute, requireAuth, logoutAll);
+router.post("/logout-all", protectRoute, requireAuth, logoutAll);
 
 router.get("/sessions", protectRoute, requireAuth, getSessions);
 router.post(
