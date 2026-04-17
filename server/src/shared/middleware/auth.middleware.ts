@@ -1,12 +1,28 @@
-import { decodeAccessToken, endSession } from "../../modules/auth/auth.utils";
+import {
+    AUTH_ERROR_CODE,
+    AUTH_ERROR_STATUS,
+    authErrorMessages,
+} from "../../modules/auth/auth.messages";
+import {
+    decodeAccessToken,
+    ensureSessionExists,
+    ensureStudentExistsForAuth,
+    validateActiveSession,
+    validateAuthTokenVersion,
+} from "../../modules/auth/auth.utils";
 import Session from "../../modules/auth/session.model";
 import Student from "../../modules/student/student.model";
-import { authErrorMessages } from "../constants/auth.constants";
 import { ApiError, asyncHandler } from "../utils";
 
 export const protectRoute = asyncHandler(async (req, res, next) => {
     const accessToken = req.cookies.accessToken;
-    if (!accessToken) throw new ApiError(401, authErrorMessages.noAccessToken);
+    if (!accessToken) {
+        throw new ApiError(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.NO_ACCESS_TOKEN],
+            authErrorMessages.noAccessToken,
+            [AUTH_ERROR_CODE.NO_ACCESS_TOKEN]
+        );
+    }
 
     const decoded = decodeAccessToken(accessToken);
 
@@ -15,26 +31,23 @@ export const protectRoute = asyncHandler(async (req, res, next) => {
         Session.findById(decoded.sessionId),
     ]);
 
-    if (!student) throw new ApiError(401, authErrorMessages.studentNotFound);
-    if (!session) throw new ApiError(401, authErrorMessages.sessionExpired);
-    if (session.endedAt)
-        throw new ApiError(401, authErrorMessages.sessionEnded);
-    if (session.revoked)
-        throw new ApiError(401, authErrorMessages.sessionRevoked);
-    if (session.expiresAt <= new Date()) {
-        await endSession(session._id.toString(), "expired", new Date());
-        throw new ApiError(401, authErrorMessages.sessionExpired);
-    }
+    const authStudent = ensureStudentExistsForAuth(student);
+    const authSession = ensureSessionExists(
+        session,
+        authErrorMessages.sessionExpired
+    );
+    await validateActiveSession(authSession, {
+        checkRevoked: true,
+        endExpiredSession: true,
+    });
 
-    if (decoded.tokenVersion !== student.tokenVersion) {
-        throw new ApiError(401, authErrorMessages.tokenInvalidated);
-    }
+    validateAuthTokenVersion(decoded.tokenVersion, authStudent.tokenVersion);
 
     // Update lastAccessedAt for the session
-    session.lastAccessedAt = new Date();
-    await session.save();
+    authSession.lastAccessedAt = new Date();
+    await authSession.save();
 
-    req.user = student;
+    req.user = authStudent;
     next();
 });
 
@@ -50,12 +63,15 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
             Session.findById(decoded.sessionId),
         ]);
 
-        if (!student) return next();
-        if (!session) return next();
-        if (session.endedAt) return next();
-        if (session.revoked) return next();
-        if (session.expiresAt <= new Date()) return next();
-        if (decoded.tokenVersion !== student.tokenVersion) return next();
+        const authStudent = ensureStudentExistsForAuth(student);
+        const authSession = ensureSessionExists(session);
+        await validateActiveSession(authSession, {
+            checkRevoked: true,
+        });
+        validateAuthTokenVersion(
+            decoded.tokenVersion,
+            authStudent.tokenVersion
+        );
 
         return res.redirect("/");
     } catch {
@@ -65,7 +81,11 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
 
 export const requireAuth = asyncHandler(async (req, res, next) => {
     if (!req.user) {
-        throw new ApiError(401, authErrorMessages.unauthorized);
+        throw new ApiError(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.UNAUTHORIZED],
+            authErrorMessages.unauthorized,
+            [AUTH_ERROR_CODE.UNAUTHORIZED]
+        );
     }
     next();
 });

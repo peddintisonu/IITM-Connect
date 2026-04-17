@@ -5,7 +5,6 @@ import {
     redirectIfAuthenticated,
     requireAuth,
 } from "../../shared/middleware/auth.middleware";
-import { authRouteMessages } from "../../shared/constants/auth.constants";
 import { ApiResponse } from "../../shared/utils";
 import {
     getSessions,
@@ -15,6 +14,11 @@ import {
     refreshToken,
     revokeSession,
 } from "./auth.controller";
+import {
+    AUTH_ERROR_CODE,
+    AUTH_ERROR_STATUS,
+    authRouteMessages,
+} from "./auth.messages";
 
 const router = Router();
 
@@ -34,8 +38,12 @@ router.get(
 );
 
 router.get("/failure", (req, res) => {
-    res.status(401).json(
-        new ApiResponse(401, null, authRouteMessages.authenticationFailed)
+    res.status(AUTH_ERROR_STATUS[AUTH_ERROR_CODE.AUTHENTICATION_FAILED]).json(
+        new ApiResponse(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.AUTHENTICATION_FAILED],
+            null,
+            authRouteMessages.authenticationFailed
+        )
     );
 });
 

@@ -1,6 +1,10 @@
 // server/src/seeds/masterData.seed.ts
 
-import { COURSES, DEPARTMENTS, HOSTELS } from "../shared/constants/masterData.constants";
+import {
+    COURSES,
+    DEPARTMENTS,
+    HOSTELS,
+} from "../shared/constants/masterData.constants";
 import { Course } from "../modules/core/models/course.model";
 import { Department } from "../modules/core/models/department.model";
 import { Hostel } from "../modules/core/models/hostel.model";

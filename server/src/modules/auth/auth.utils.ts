@@ -1,16 +1,30 @@
-import { Request } from "express";
+import { Request, Response } from "express";
 import geoip from "geoip-lite";
 import jwt from "jsonwebtoken";
 import { UAParser } from "ua-parser-js";
 
 import { ENV } from "../../config/env";
-import {
-    authErrorMessages,
-    defaultSessionValues,
-    sessionLifetime,
-} from "../../shared/constants/auth.constants";
 import { ApiError } from "../../shared/utils";
+import {
+    accessCookieOptions,
+    defaultSessionValues,
+    refreshCookieOptions,
+    sessionLifetime,
+} from "./auth.constants";
+import {
+    AUTH_ERROR_CODE,
+    AUTH_ERROR_STATUS,
+    authErrorMessages,
+} from "./auth.messages";
 import Session from "./session.model";
+
+interface SessionStateLike {
+    _id?: unknown;
+    id?: string;
+    expiresAt: Date;
+    endedAt?: Date;
+    revoked?: boolean;
+}
 
 export interface SessionLocation {
     ip?: string;
@@ -95,11 +109,19 @@ const decodeToken = (token: string, secret: string, tokenName: string) => {
     try {
         return jwt.verify(token, secret) as SessionTokenPayload;
     } catch {
+        const isAccessToken = tokenName === "access";
         throw new ApiError(
-            401,
-            tokenName === "access"
+            isAccessToken
+                ? AUTH_ERROR_STATUS[AUTH_ERROR_CODE.INVALID_ACCESS_TOKEN]
+                : AUTH_ERROR_STATUS[AUTH_ERROR_CODE.INVALID_REFRESH_TOKEN],
+            isAccessToken
                 ? authErrorMessages.invalidAccessToken
-                : authErrorMessages.invalidRefreshToken
+                : authErrorMessages.invalidRefreshToken,
+            [
+                isAccessToken
+                    ? AUTH_ERROR_CODE.INVALID_ACCESS_TOKEN
+                    : AUTH_ERROR_CODE.INVALID_REFRESH_TOKEN,
+            ]
         );
     }
 };
@@ -115,6 +137,101 @@ export const getSessionIdFromAccessToken = (accessToken: string) =>
 
 export const getSessionIdFromRefreshToken = (refreshToken: string) =>
     decodeRefreshToken(refreshToken).sessionId;
+
+export const setAuthCookies = (
+    res: Response,
+    accessToken: string,
+    refreshToken: string
+) =>
+    res
+        .cookie("accessToken", accessToken, accessCookieOptions)
+        .cookie("refreshToken", refreshToken, refreshCookieOptions);
+
+export const clearAuthCookies = (res: Response) => {
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+};
+
+export const ensureSessionExists = <T>(
+    session: T,
+    message = authErrorMessages.sessionExpired,
+    statusCode: number = AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_EXPIRED]
+): NonNullable<T> => {
+    if (!session) {
+        throw new ApiError(statusCode, message, [
+            AUTH_ERROR_CODE.SESSION_EXPIRED,
+        ]);
+    }
+    return session as NonNullable<T>;
+};
+
+export const ensureStudentExistsForAuth = <T>(
+    student: T,
+    statusCode = AUTH_ERROR_STATUS[AUTH_ERROR_CODE.STUDENT_NOT_FOUND]
+): NonNullable<T> => {
+    if (!student) {
+        throw new ApiError(statusCode, authErrorMessages.studentNotFound, [
+            AUTH_ERROR_CODE.STUDENT_NOT_FOUND,
+        ]);
+    }
+    return student as NonNullable<T>;
+};
+
+const getSessionIdentifier = (session: SessionStateLike) =>
+    session.id ||
+    (typeof session._id === "string" ? session._id : String(session._id || ""));
+
+export const validateActiveSession = async (
+    session: SessionStateLike,
+    options: {
+        checkRevoked?: boolean;
+        endExpiredSession?: boolean;
+    } = {}
+) => {
+    if (session.endedAt) {
+        throw new ApiError(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_ENDED],
+            authErrorMessages.sessionEnded,
+            [AUTH_ERROR_CODE.SESSION_ENDED]
+        );
+    }
+
+    if (options.checkRevoked && session.revoked) {
+        throw new ApiError(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_REVOKED],
+            authErrorMessages.sessionRevoked,
+            [AUTH_ERROR_CODE.SESSION_REVOKED]
+        );
+    }
+
+    if (session.expiresAt <= new Date()) {
+        if (options.endExpiredSession) {
+            const sessionId = getSessionIdentifier(session);
+            if (sessionId) {
+                await endSession(sessionId, "expired", new Date());
+            }
+        }
+
+        throw new ApiError(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_EXPIRED],
+            authErrorMessages.sessionExpired,
+            [AUTH_ERROR_CODE.SESSION_EXPIRED]
+        );
+    }
+};
+
+export const validateAuthTokenVersion = (
+    tokenVersion: number,
+    studentTokenVersion: number
+) => {
+    if (tokenVersion !== studentTokenVersion) {
+        throw new ApiError(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.TOKEN_INVALIDATED],
+            authErrorMessages.tokenInvalidated,
+            [AUTH_ERROR_CODE.TOKEN_INVALIDATED]
+        );
+    }
+};
 
 export const buildDeleteAt = (endedAt: Date) =>
     new Date(endedAt.getTime() + sessionLifetime.retentionMs);

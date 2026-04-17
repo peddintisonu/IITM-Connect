@@ -10,7 +10,7 @@ import {
     STUDENT_SELF_SELECT,
 } from "../../shared/constants/students.constants";
 import { UPLOAD_LIMITS } from "../../shared/constants/upload.constants";
-import { ApiError, cleanFullName, parseRollNo } from "../../shared/utils";
+import { ApiError } from "../../shared/utils";
 import {
     OnboardingInput,
     UpdateHostelInput,
@@ -22,6 +22,7 @@ import { Department } from "../core/models/department.model";
 import { Block } from "../social/block.model";
 import { Follow } from "../social/follow.model";
 import Student from "./student.model";
+import { cleanFullName, parseRollNo } from "./student.utils";
 
 const hiddenFieldMap: Record<string, string> = {
     rollNo: "currentRollNo",

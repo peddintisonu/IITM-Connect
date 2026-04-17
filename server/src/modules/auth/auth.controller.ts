@@ -1,14 +1,15 @@
 import { Request, Response } from "express";
-import {
-    accessCookieOptions,
-    authErrorMessages,
-    authRouteMessages,
-    refreshCookieOptions,
-} from "../../shared/constants/auth.constants";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError } from "../../shared/utils/ApiError";
 import { ApiResponse } from "../../shared/utils/ApiResponse";
 import { asyncHandler } from "../../shared/utils/asyncHandler";
 import { IStudent } from "../student/student.model";
+import {
+    AUTH_ERROR_CODE,
+    AUTH_ERROR_STATUS,
+    authErrorMessages,
+    authRouteMessages,
+} from "./auth.messages";
 import {
     generateTokens,
     listSessionsForUser,
@@ -21,20 +22,24 @@ import {
 import {
     buildSessionContext,
     buildSessionContextFromExistingSession,
+    clearAuthCookies,
+    ensureSessionExists,
     getSessionIdFromAccessToken,
+    setAuthCookies,
     type SessionContext,
 } from "./auth.utils";
 import Session from "./session.model";
 
-const clearAuthCookies = (res: Response) => {
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
-};
-
 export const googleCallback = asyncHandler(
     async (req: Request, res: Response) => {
         const student = req.user as IStudent;
-        if (!student) throw new ApiError(401, authErrorMessages.unauthorized);
+        if (!student) {
+            throw new ApiError(
+                AUTH_ERROR_STATUS[AUTH_ERROR_CODE.UNAUTHORIZED],
+                authErrorMessages.unauthorized,
+                [AUTH_ERROR_CODE.UNAUTHORIZED]
+            );
+        }
 
         const sessionContext = buildSessionContext(req);
         const { accessToken, refreshToken } = await generateTokens(
@@ -42,36 +47,52 @@ export const googleCallback = asyncHandler(
             sessionContext
         );
 
-        res.cookie("accessToken", accessToken, accessCookieOptions)
-            .cookie("refreshToken", refreshToken, refreshCookieOptions)
-            .redirect("/");
+        setAuthCookies(res, accessToken, refreshToken).redirect("/");
     }
 );
 
 export const refreshToken = asyncHandler(
     async (req: Request, res: Response) => {
         const token = req.cookies.refreshToken;
-        if (!token) throw new ApiError(401, authErrorMessages.noRefreshToken);
+        if (!token) {
+            throw new ApiError(
+                AUTH_ERROR_STATUS[AUTH_ERROR_CODE.NO_REFRESH_TOKEN],
+                authErrorMessages.noRefreshToken,
+                [AUTH_ERROR_CODE.NO_REFRESH_TOKEN]
+            );
+        }
 
         const sessionContext = buildSessionContext(req);
 
         const { accessToken, refreshToken: newRefreshToken } =
             await refreshAccessToken(token, sessionContext);
 
-        res.cookie("accessToken", accessToken, accessCookieOptions)
-            .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
-            .json(new ApiResponse(200, null, authRouteMessages.tokenRefreshed));
+        setAuthCookies(res, accessToken, newRefreshToken).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                null,
+                authRouteMessages.tokenRefreshed
+            )
+        );
     }
 );
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
     const token = req.cookies.refreshToken;
-    if (!token) throw new ApiError(401, authErrorMessages.noRefreshToken);
+    if (!token) {
+        throw new ApiError(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.NO_REFRESH_TOKEN],
+            authErrorMessages.noRefreshToken,
+            [AUTH_ERROR_CODE.NO_REFRESH_TOKEN]
+        );
+    }
 
     await logoutOne(token);
     clearAuthCookies(res);
 
-    res.json(new ApiResponse(200, null, authRouteMessages.loggedOut));
+    res.json(
+        new ApiResponse(HTTP_STATUS.OK, null, authRouteMessages.loggedOut)
+    );
 });
 
 export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
@@ -84,13 +105,10 @@ export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
     await logoutAllSessions(student._id.toString(), currentSessionId);
     await student.incrementTokenVersion();
 
-    const currentSession = currentSessionId
-        ? await Session.findById(currentSessionId)
-        : null;
-
-    if (!currentSession) {
-        throw new ApiError(401, authErrorMessages.sessionExpired);
-    }
+    const currentSession = ensureSessionExists(
+        currentSessionId ? await Session.findById(currentSessionId) : null,
+        authErrorMessages.sessionExpired
+    );
 
     const currentSessionContext: SessionContext =
         buildSessionContextFromExistingSession(currentSession, req);
@@ -102,13 +120,10 @@ export const logoutAll = asyncHandler(async (req: Request, res: Response) => {
             currentSessionContext
         );
 
-    // Set cookies for current session
-    res.cookie("accessToken", newAccessToken, accessCookieOptions).cookie(
-        "refreshToken",
-        newRefreshToken,
-        refreshCookieOptions
+    setAuthCookies(res, newAccessToken, newRefreshToken);
+    res.json(
+        new ApiResponse(HTTP_STATUS.OK, null, authRouteMessages.loggedOutAll)
     );
-    res.json(new ApiResponse(200, null, authRouteMessages.loggedOutAll));
 });
 
 // List all sessions for the current user
@@ -122,7 +137,13 @@ export const getSessions = asyncHandler(async (req: Request, res: Response) => {
         student._id.toString(),
         currentSessionId
     );
-    res.json(new ApiResponse(200, result, authRouteMessages.sessionsFetched));
+    res.json(
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            result,
+            authRouteMessages.sessionsFetched
+        )
+    );
 });
 
 // Revoke (logout) a specific session for the current user
@@ -134,6 +155,12 @@ export const revokeSession = asyncHandler(
             : req.params.sessionId;
         await revokeSessionService(student._id.toString(), sessionId);
 
-        res.json(new ApiResponse(200, null, authRouteMessages.sessionRevoked));
+        res.json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                null,
+                authRouteMessages.sessionRevoked
+            )
+        );
     }
 );

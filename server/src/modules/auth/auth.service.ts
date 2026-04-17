@@ -2,18 +2,26 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import { ENV } from "../../config/env";
-import {
-    authErrorMessages,
-    defaultSessionValues,
-    sessionLifetime,
-    tokenExpiry,
-} from "../../shared/constants/auth.constants";
 import { ApiError } from "../../shared/utils";
 import Student, { IStudent } from "../student/student.model";
 import {
+    defaultSessionValues,
+    sessionLifetime,
+    tokenExpiry,
+} from "./auth.constants";
+import {
+    AUTH_ERROR_CODE,
+    AUTH_ERROR_STATUS,
+    authErrorMessages,
+} from "./auth.messages";
+import {
     decodeRefreshToken,
     endSession,
+    ensureSessionExists,
+    ensureStudentExistsForAuth,
     type SessionContext,
+    validateActiveSession,
+    validateAuthTokenVersion,
 } from "./auth.utils";
 import Session from "./session.model";
 
@@ -104,19 +112,13 @@ export const refreshAccessToken = async (
 ) => {
     const decoded = decodeRefreshToken(refreshToken);
 
-    const session = await Session.findById(decoded.sessionId);
-    if (!session) {
-        throw new ApiError(401, authErrorMessages.sessionExpired);
-    }
-    if (session.endedAt) {
-        throw new ApiError(401, authErrorMessages.sessionEnded);
-    }
-
-    const sessionExpired = session.expiresAt <= new Date();
-    if (sessionExpired) {
-        await endSession(session.id, "expired", new Date());
-        throw new ApiError(401, authErrorMessages.sessionExpired);
-    }
+    const session = ensureSessionExists(
+        await Session.findById(decoded.sessionId),
+        authErrorMessages.sessionExpired
+    );
+    await validateActiveSession(session, {
+        endExpiredSession: true,
+    });
 
     const hashedToken = crypto
         .createHash("sha256")
@@ -130,17 +132,18 @@ export const refreshAccessToken = async (
         session.graceExpiresAt > new Date();
 
     if (!isCurrentRefreshToken && !isPreviousRefreshTokenInGraceWindow) {
-        throw new ApiError(401, authErrorMessages.invalidRefreshToken);
+        throw new ApiError(
+            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.INVALID_REFRESH_TOKEN],
+            authErrorMessages.invalidRefreshToken,
+            [AUTH_ERROR_CODE.INVALID_REFRESH_TOKEN]
+        );
     }
 
-    const student = await Student.findById(decoded.studentId);
-    if (!student) {
-        throw new ApiError(401, authErrorMessages.studentNotFound);
-    }
+    const student = ensureStudentExistsForAuth(
+        await Student.findById(decoded.studentId)
+    );
 
-    if (decoded.tokenVersion !== student.tokenVersion) {
-        throw new ApiError(401, authErrorMessages.tokenInvalidated);
-    }
+    validateAuthTokenVersion(decoded.tokenVersion, student.tokenVersion);
 
     return rotateExistingSessionTokens(session, student, sessionContext);
 };
@@ -148,10 +151,11 @@ export const refreshAccessToken = async (
 export const logoutOne = async (refreshToken: string) => {
     const decoded = decodeRefreshToken(refreshToken);
 
-    const session = await Session.findById(decoded.sessionId);
-    if (!session) {
-        throw new ApiError(400, authErrorMessages.sessionNotFound);
-    }
+    const session = ensureSessionExists(
+        await Session.findById(decoded.sessionId),
+        authErrorMessages.sessionNotFound,
+        AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_NOT_FOUND]
+    );
     await endSession(session.id, "logout", new Date());
 };
 
@@ -200,8 +204,11 @@ export const listSessionsForUser = async (
 
 // Revoke (logout) a specific session for a user
 export const revokeSession = async (userId: string, sessionId: string) => {
-    const session = await Session.findOne({ _id: sessionId, userId });
-    if (!session) throw new ApiError(404, authErrorMessages.sessionNotFound);
+    const session = ensureSessionExists(
+        await Session.findOne({ _id: sessionId, userId }),
+        authErrorMessages.sessionNotFound,
+        AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_NOT_FOUND]
+    );
     if (session.endedAt || session.revoked) return;
     await endSession(session.id, "revoked", new Date());
 };
