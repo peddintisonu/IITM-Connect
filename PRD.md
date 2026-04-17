@@ -6,7 +6,7 @@
 **Stack:** MERN + TypeScript  
 **Team:** 2 developers  
 **Start Date:** 11-04-2026  
-**Last Updated:** 15-04-2026
+**Last Updated:** 17-04-2026
 
 ---
 
@@ -633,8 +633,38 @@ server/src/
 
 ---
 
+## 25. Implementation Progress Snapshot (17-04-2026)
+
+### Implemented in Code
+
+- Backend modules: `auth`, `student`, `social`, and core master-data models.
+- Auth flow: Google OAuth (smail only), cookie-based JWT auth, refresh rotation, per-device session listing and revocation.
+- Student flow: onboarding, profile edits, hostel and privacy updates, profile and cover uploads to Cloudinary.
+- Social flow: follow, cancel follow request, accept/reject request, unfollow, remove follower, block/unblock, relationship lookup.
+- API docs: Swagger UI served at `/api-docs`.
+
+### Implemented Route Prefixes
+
+- `/api/v1/auth`
+- `/api/v1/students`
+- `/api/v1/social`
+
+### Current Frontend Scope
+
+- Landing page is implemented.
+- OAuth entry point is wired to `/api/v1/auth/google`.
+- Post-login product UI (feed, profile pages, org flows, events, polls) is pending.
+
+### Active Gaps vs Product Vision
+
+- Org hierarchy and POR lifecycle modules are not yet implemented.
+- Feed, posts, events, polls, forums, complaints, and notifications are not yet implemented.
+- Real-time, email, and push pipelines are planned but not yet wired.
+
+### Noted API Contract Cleanup
+
+- Refresh endpoint is currently `GET /api/v1/auth/refresh`; should be migrated to `POST` for state-changing semantics.
+
+---
+
 _Document will be updated as development progresses._
-
-```
-
-```

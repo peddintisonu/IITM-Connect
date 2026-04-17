@@ -1,6 +1,6 @@
 # IITMConnect 🎓
 
-A unified campus platform for IIT Chennai — replacing WhatsApp groups, mass mails, Google Forms, and scattered Instagram pages.
+A unified campus platform for IIT Madras — replacing WhatsApp groups, mass mails, Google Forms, and scattered Instagram pages.
 
 > LinkedIn (profiles + PORs) + Instagram (clubs posting) + Intranet (college ops)
 
@@ -69,6 +69,31 @@ npm run dev:client   # client only
 | `npm run format`     | Formats code with Prettier               |
 | `npm run clean`      | Removes node_modules and build artifacts |
 | `npm run reinstall`  | Full reset and reinstall                 |
+
+---
+
+## 📈 Current Progress (17-04-2026)
+
+### Backend
+
+- Implemented modules: `auth`, `student`, `social`, and core master-data models.
+- Mounted API prefixes:
+    - `/api/v1/auth`
+    - `/api/v1/students`
+    - `/api/v1/social`
+- Auth includes Google OAuth (smail-only), JWT cookie sessions, refresh rotation, and per-device session management.
+- Student APIs include onboarding, profile updates, hostel/privacy updates, and Cloudinary photo uploads.
+- Social APIs include follow request lifecycle, block lifecycle, and relationship lookup.
+- API docs are available at `/api-docs`.
+
+### Frontend
+
+- Current client is a landing page with OAuth CTA to `/api/v1/auth/google`.
+- Post-login UI (dashboard/feed/profile/org pages) is not implemented yet.
+
+### Note
+
+- `GET /api/v1/auth/refresh` is currently used in code and should be migrated to `POST`.
 
 ---
 
