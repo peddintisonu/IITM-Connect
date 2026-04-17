@@ -2,10 +2,11 @@
 
 import mongoose from "mongoose";
 import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
-import { ApiError } from "../../shared/utils";
+import { ApiError, ensureStudentExists } from "../../shared/utils";
 import Student from "../students/student.model";
 import { Block } from "./block.model";
 import { Follow } from "./follow.model";
+import { isBlockedBetween } from "./relationships.utils";
 import { FOLLOW_STATUS, FOLLOW_TYPE } from "./social.constants";
 import { socialErrorMessages } from "./socialMessages";
 
@@ -21,12 +22,7 @@ export const sendFollowRequest = async (
         );
     }
 
-    const isBlocked = await Block.findOne({
-        $or: [
-            { blockerId: followerId, blockedId: followingId },
-            { blockerId: followingId, blockedId: followerId },
-        ],
-    });
+    const isBlocked = await isBlockedBetween(followerId, followingId);
 
     if (isBlocked) {
         throw new ApiError(
@@ -48,13 +44,8 @@ export const sendFollowRequest = async (
 
     if (followingType === FOLLOW_TYPE.STUDENT) {
         const targetStudent = await Student.findById(followingId);
-        if (!targetStudent) {
-            throw new ApiError(
-                HTTP_STATUS.NOT_FOUND,
-                socialErrorMessages.studentNotFound
-            );
-        }
-        if (targetStudent.accountType === "private") {
+        const validStudent = ensureStudentExists(targetStudent);
+        if (validStudent.accountType === "private") {
             status = FOLLOW_STATUS.PENDING;
         }
     }
@@ -235,7 +226,7 @@ export const getRelationshipState = async (
                 { blockerId: viewerId, blockedId: targetId },
                 { blockerId: targetId, blockedId: viewerId },
             ],
-        }).select("blockerId blockedId"),
+        }).select("blockerId"),
         Follow.findOne({
             followerId: viewerId,
             followingId: targetId,

@@ -1,3 +1,5 @@
+// server/src/modules/auth/auth.controller.ts
+
 import { Request, Response } from "express";
 import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError } from "../../shared/utils/ApiError";
@@ -14,6 +16,7 @@ import {
     revokeSession as revokeSessionService,
     rotateExistingSessionTokens,
 } from "./auth.service";
+import Session from "./session.model";
 import {
     buildSessionContext,
     buildSessionContextFromExistingSession,
@@ -22,8 +25,7 @@ import {
     getSessionIdFromAccessToken,
     setAuthCookies,
     type SessionContext,
-} from "./auth.utils";
-import Session from "./session.model";
+} from "./utils/index";
 
 export const googleCallback = asyncHandler(
     async (req: Request, res: Response) => {

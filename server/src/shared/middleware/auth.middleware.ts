@@ -1,12 +1,14 @@
+// server/src/shared/middleware/auth.middleware.ts
+
 import { authErrorMessages } from "../../modules/auth/auth.messages";
+import Session from "../../modules/auth/session.model";
 import {
     decodeAccessToken,
     ensureSessionExists,
     ensureStudentExistsForAuth,
     validateActiveSession,
     validateAuthTokenVersion,
-} from "../../modules/auth/auth.utils";
-import Session from "../../modules/auth/session.model";
+} from "../../modules/auth/utils/index";
 import Student from "../../modules/students/student.model";
 import { HTTP_STATUS } from "../constants/http-status.constants";
 import { ApiError, asyncHandler } from "../utils";
@@ -39,6 +41,8 @@ export const protectRoute = asyncHandler(async (req, res, next) => {
 
     validateAuthTokenVersion(decoded.tokenVersion, authStudent.tokenVersion);
 
+    // TODO: MongoDb bottleneck - update last 5 min accessed sessions or so
+    // no need to be precise can be approximate
     // Update lastAccessedAt for the session
     authSession.lastAccessedAt = new Date();
     await authSession.save();
@@ -73,14 +77,4 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
     } catch {
         return next();
     }
-});
-
-export const requireAuth = asyncHandler(async (req, res, next) => {
-    if (!req.user) {
-        throw new ApiError(
-            HTTP_STATUS.UNAUTHORIZED,
-            authErrorMessages.unauthorized
-        );
-    }
-    next();
 });

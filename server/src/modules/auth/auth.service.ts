@@ -11,6 +11,7 @@ import {
     tokenExpiry,
 } from "./auth.constants";
 import { authErrorMessages } from "./auth.messages";
+import Session from "./session.model";
 import {
     decodeRefreshToken,
     endSession,
@@ -19,8 +20,7 @@ import {
     type SessionContext,
     validateActiveSession,
     validateAuthTokenVersion,
-} from "./auth.utils";
-import Session from "./session.model";
+} from "./utils/index";
 
 const hashToken = (token: string) =>
     crypto.createHash("sha256").update(token).digest("hex");
@@ -155,6 +155,7 @@ export const logoutOne = async (refreshToken: string) => {
     await endSession(session.id, "logout", new Date());
 };
 
+// TODO: Add transaction support for logoutAll and revokeSession to ensure atomicity and consistency of session state changes
 export const logoutAll = async (
     studentId: string,
     currentSessionId?: string

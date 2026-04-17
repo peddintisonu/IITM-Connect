@@ -7,7 +7,7 @@ import {
 } from "../../lib/cloudinaryUpload";
 import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { UPLOAD_LIMITS } from "../../shared/constants/upload.constants";
-import { ApiError } from "../../shared/utils";
+import { ApiError, ensureStudentExists } from "../../shared/utils";
 import {
     OnboardingInput,
     UpdateHostelInput,
@@ -16,8 +16,8 @@ import {
 } from "../../validations/student.validation";
 import { Course } from "../core/models/course.model";
 import { Department } from "../core/models/department.model";
-import { Block } from "../social/block.model";
 import { Follow } from "../social/follow.model";
+import { isBlockedBetween } from "../social/relationships.utils";
 import {
     STUDENT_PUBLIC_SELECT,
     STUDENT_SELF_SELECT,
@@ -74,12 +74,8 @@ export const onboardStudent = async (
 ) => {
     const student = await Student.findById(studentId);
 
-    if (!student)
-        throw new ApiError(
-            HTTP_STATUS.NOT_FOUND,
-            studentErrorMessages.studentNotFound
-        );
-    if (student.isOnboarded)
+    const validStudent = ensureStudentExists(student);
+    if (validStudent.isOnboarded)
         throw new ApiError(
             HTTP_STATUS.BAD_REQUEST,
             studentErrorMessages.studentAlreadyOnboarded
@@ -105,17 +101,17 @@ export const onboardStudent = async (
         );
     }
 
-    student.displayName = data.displayName;
-    student.username = data.username;
-    student.accountType = data.accountType;
-    student.isOnboarded = true;
+    validStudent.displayName = data.displayName;
+    validStudent.username = data.username;
+    validStudent.accountType = data.accountType;
+    validStudent.isOnboarded = true;
 
     if (data.currentHostelId) {
-        student.currentHostelId = new mongoose.Types.ObjectId(
+        validStudent.currentHostelId = new mongoose.Types.ObjectId(
             data.currentHostelId
         );
-        student.currentRoomNo = data.currentRoomNo;
-        student.hostelHistory = [
+        validStudent.currentRoomNo = data.currentRoomNo;
+        validStudent.hostelHistory = [
             {
                 hostelId: new mongoose.Types.ObjectId(data.currentHostelId),
                 roomNo: data.currentRoomNo!,
@@ -123,9 +119,9 @@ export const onboardStudent = async (
         ];
     }
 
-    await student.save();
+    await validStudent.save();
 
-    return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
+    return validStudent;
 };
 
 export const editStudentProfile = async (
@@ -258,12 +254,10 @@ export const getStudentByUsername = async (
     }
 
     // check blocks in both directions
-    const block = await Block.findOne({
-        $or: [
-            { blockerId: viewerId, blockedId: targetId },
-            { blockerId: targetId, blockedId: viewerId },
-        ],
-    });
+    const block = await isBlockedBetween(
+        new mongoose.Types.ObjectId(viewerId),
+        new mongoose.Types.ObjectId(targetId)
+    );
     if (block)
         throw new ApiError(
             HTTP_STATUS.NOT_FOUND,

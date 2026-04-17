@@ -1,4 +1,4 @@
-// server/src/shared/constants/masterData.ts
+// server/src/seeds/masterData.constants.ts
 
 export const COURSES = [
     {
