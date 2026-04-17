@@ -1,6 +1,6 @@
 # IITMConnect 🎓
 
-A unified campus platform for IIT — replacing WhatsApp groups, mass mails, Google Forms, and scattered Instagram pages.
+A unified campus platform for IIT Madras — replacing WhatsApp groups, mass mails, Google Forms, and scattered Instagram pages.
 
 > LinkedIn (profiles + PORs) + Instagram (clubs posting) + Intranet (college ops)
 
