@@ -1,5 +1,6 @@
 import { Router } from "express";
 import passport from "../../config/passport";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import {
     protectRoute,
     redirectIfAuthenticated,
@@ -14,11 +15,7 @@ import {
     refreshToken,
     revokeSession,
 } from "./auth.controller";
-import {
-    AUTH_ERROR_CODE,
-    AUTH_ERROR_STATUS,
-    authRouteMessages,
-} from "./auth.messages";
+import { authRouteMessages } from "./auth.messages";
 
 const router = Router();
 
@@ -38,9 +35,9 @@ router.get(
 );
 
 router.get("/failure", (req, res) => {
-    res.status(AUTH_ERROR_STATUS[AUTH_ERROR_CODE.AUTHENTICATION_FAILED]).json(
+    res.status(HTTP_STATUS.UNAUTHORIZED).json(
         new ApiResponse(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.AUTHENTICATION_FAILED],
+            HTTP_STATUS.UNAUTHORIZED,
             null,
             authRouteMessages.authenticationFailed
         )

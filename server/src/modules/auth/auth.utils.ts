@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { UAParser } from "ua-parser-js";
 
 import { ENV } from "../../config/env";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError } from "../../shared/utils";
 import {
     accessCookieOptions,
@@ -11,11 +12,7 @@ import {
     refreshCookieOptions,
     sessionLifetime,
 } from "./auth.constants";
-import {
-    AUTH_ERROR_CODE,
-    AUTH_ERROR_STATUS,
-    authErrorMessages,
-} from "./auth.messages";
+import { authErrorMessages } from "./auth.messages";
 import Session from "./session.model";
 
 interface SessionStateLike {
@@ -111,17 +108,10 @@ const decodeToken = (token: string, secret: string, tokenName: string) => {
     } catch {
         const isAccessToken = tokenName === "access";
         throw new ApiError(
-            isAccessToken
-                ? AUTH_ERROR_STATUS[AUTH_ERROR_CODE.INVALID_ACCESS_TOKEN]
-                : AUTH_ERROR_STATUS[AUTH_ERROR_CODE.INVALID_REFRESH_TOKEN],
+            HTTP_STATUS.UNAUTHORIZED,
             isAccessToken
                 ? authErrorMessages.invalidAccessToken
-                : authErrorMessages.invalidRefreshToken,
-            [
-                isAccessToken
-                    ? AUTH_ERROR_CODE.INVALID_ACCESS_TOKEN
-                    : AUTH_ERROR_CODE.INVALID_REFRESH_TOKEN,
-            ]
+                : authErrorMessages.invalidRefreshToken
         );
     }
 };
@@ -155,24 +145,20 @@ export const clearAuthCookies = (res: Response) => {
 export const ensureSessionExists = <T>(
     session: T,
     message = authErrorMessages.sessionExpired,
-    statusCode: number = AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_EXPIRED]
+    statusCode: number = HTTP_STATUS.UNAUTHORIZED
 ): NonNullable<T> => {
     if (!session) {
-        throw new ApiError(statusCode, message, [
-            AUTH_ERROR_CODE.SESSION_EXPIRED,
-        ]);
+        throw new ApiError(statusCode, message);
     }
     return session as NonNullable<T>;
 };
 
 export const ensureStudentExistsForAuth = <T>(
     student: T,
-    statusCode = AUTH_ERROR_STATUS[AUTH_ERROR_CODE.STUDENT_NOT_FOUND]
+    statusCode = HTTP_STATUS.UNAUTHORIZED
 ): NonNullable<T> => {
     if (!student) {
-        throw new ApiError(statusCode, authErrorMessages.studentNotFound, [
-            AUTH_ERROR_CODE.STUDENT_NOT_FOUND,
-        ]);
+        throw new ApiError(statusCode, authErrorMessages.studentNotFound);
     }
     return student as NonNullable<T>;
 };
@@ -190,17 +176,15 @@ export const validateActiveSession = async (
 ) => {
     if (session.endedAt) {
         throw new ApiError(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_ENDED],
-            authErrorMessages.sessionEnded,
-            [AUTH_ERROR_CODE.SESSION_ENDED]
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.sessionEnded
         );
     }
 
     if (options.checkRevoked && session.revoked) {
         throw new ApiError(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_REVOKED],
-            authErrorMessages.sessionRevoked,
-            [AUTH_ERROR_CODE.SESSION_REVOKED]
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.sessionRevoked
         );
     }
 
@@ -213,9 +197,8 @@ export const validateActiveSession = async (
         }
 
         throw new ApiError(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_EXPIRED],
-            authErrorMessages.sessionExpired,
-            [AUTH_ERROR_CODE.SESSION_EXPIRED]
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.sessionExpired
         );
     }
 };
@@ -226,9 +209,8 @@ export const validateAuthTokenVersion = (
 ) => {
     if (tokenVersion !== studentTokenVersion) {
         throw new ApiError(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.TOKEN_INVALIDATED],
-            authErrorMessages.tokenInvalidated,
-            [AUTH_ERROR_CODE.TOKEN_INVALIDATED]
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.tokenInvalidated
         );
     }
 };

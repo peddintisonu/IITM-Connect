@@ -3,13 +3,8 @@ import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError } from "../../shared/utils/ApiError";
 import { ApiResponse } from "../../shared/utils/ApiResponse";
 import { asyncHandler } from "../../shared/utils/asyncHandler";
-import { IStudent } from "../student/student.model";
-import {
-    AUTH_ERROR_CODE,
-    AUTH_ERROR_STATUS,
-    authErrorMessages,
-    authRouteMessages,
-} from "./auth.messages";
+import { IStudent } from "../students/student.model";
+import { authErrorMessages, authRouteMessages } from "./auth.messages";
 import {
     generateTokens,
     listSessionsForUser,
@@ -35,9 +30,8 @@ export const googleCallback = asyncHandler(
         const student = req.user as IStudent;
         if (!student) {
             throw new ApiError(
-                AUTH_ERROR_STATUS[AUTH_ERROR_CODE.UNAUTHORIZED],
-                authErrorMessages.unauthorized,
-                [AUTH_ERROR_CODE.UNAUTHORIZED]
+                HTTP_STATUS.UNAUTHORIZED,
+                authErrorMessages.unauthorized
             );
         }
 
@@ -56,9 +50,8 @@ export const refreshToken = asyncHandler(
         const token = req.cookies.refreshToken;
         if (!token) {
             throw new ApiError(
-                AUTH_ERROR_STATUS[AUTH_ERROR_CODE.NO_REFRESH_TOKEN],
-                authErrorMessages.noRefreshToken,
-                [AUTH_ERROR_CODE.NO_REFRESH_TOKEN]
+                HTTP_STATUS.UNAUTHORIZED,
+                authErrorMessages.noRefreshToken
             );
         }
 
@@ -81,9 +74,8 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
     const token = req.cookies.refreshToken;
     if (!token) {
         throw new ApiError(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.NO_REFRESH_TOKEN],
-            authErrorMessages.noRefreshToken,
-            [AUTH_ERROR_CODE.NO_REFRESH_TOKEN]
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.noRefreshToken
         );
     }
 

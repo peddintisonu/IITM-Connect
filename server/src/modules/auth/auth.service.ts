@@ -2,18 +2,15 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import { ENV } from "../../config/env";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError } from "../../shared/utils";
-import Student, { IStudent } from "../student/student.model";
+import Student, { IStudent } from "../students/student.model";
 import {
     defaultSessionValues,
     sessionLifetime,
     tokenExpiry,
 } from "./auth.constants";
-import {
-    AUTH_ERROR_CODE,
-    AUTH_ERROR_STATUS,
-    authErrorMessages,
-} from "./auth.messages";
+import { authErrorMessages } from "./auth.messages";
 import {
     decodeRefreshToken,
     endSession,
@@ -133,9 +130,8 @@ export const refreshAccessToken = async (
 
     if (!isCurrentRefreshToken && !isPreviousRefreshTokenInGraceWindow) {
         throw new ApiError(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.INVALID_REFRESH_TOKEN],
-            authErrorMessages.invalidRefreshToken,
-            [AUTH_ERROR_CODE.INVALID_REFRESH_TOKEN]
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.invalidRefreshToken
         );
     }
 
@@ -154,7 +150,7 @@ export const logoutOne = async (refreshToken: string) => {
     const session = ensureSessionExists(
         await Session.findById(decoded.sessionId),
         authErrorMessages.sessionNotFound,
-        AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_NOT_FOUND]
+        HTTP_STATUS.NOT_FOUND
     );
     await endSession(session.id, "logout", new Date());
 };
@@ -207,7 +203,7 @@ export const revokeSession = async (userId: string, sessionId: string) => {
     const session = ensureSessionExists(
         await Session.findOne({ _id: sessionId, userId }),
         authErrorMessages.sessionNotFound,
-        AUTH_ERROR_STATUS[AUTH_ERROR_CODE.SESSION_NOT_FOUND]
+        HTTP_STATUS.NOT_FOUND
     );
     if (session.endedAt || session.revoked) return;
     await endSession(session.id, "revoked", new Date());

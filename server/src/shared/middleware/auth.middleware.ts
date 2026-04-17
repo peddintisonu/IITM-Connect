@@ -1,8 +1,4 @@
-import {
-    AUTH_ERROR_CODE,
-    AUTH_ERROR_STATUS,
-    authErrorMessages,
-} from "../../modules/auth/auth.messages";
+import { authErrorMessages } from "../../modules/auth/auth.messages";
 import {
     decodeAccessToken,
     ensureSessionExists,
@@ -11,16 +7,16 @@ import {
     validateAuthTokenVersion,
 } from "../../modules/auth/auth.utils";
 import Session from "../../modules/auth/session.model";
-import Student from "../../modules/student/student.model";
+import Student from "../../modules/students/student.model";
+import { HTTP_STATUS } from "../constants/http-status.constants";
 import { ApiError, asyncHandler } from "../utils";
 
 export const protectRoute = asyncHandler(async (req, res, next) => {
     const accessToken = req.cookies.accessToken;
     if (!accessToken) {
         throw new ApiError(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.NO_ACCESS_TOKEN],
-            authErrorMessages.noAccessToken,
-            [AUTH_ERROR_CODE.NO_ACCESS_TOKEN]
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.noAccessToken
         );
     }
 
@@ -82,9 +78,8 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
 export const requireAuth = asyncHandler(async (req, res, next) => {
     if (!req.user) {
         throw new ApiError(
-            AUTH_ERROR_STATUS[AUTH_ERROR_CODE.UNAUTHORIZED],
-            authErrorMessages.unauthorized,
-            [AUTH_ERROR_CODE.UNAUTHORIZED]
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.unauthorized
         );
     }
     next();

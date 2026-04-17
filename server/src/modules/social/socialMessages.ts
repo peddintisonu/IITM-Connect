@@ -1,0 +1,31 @@
+export const socialErrorMessages = {
+    cannotFollowSelf: "You cannot follow yourself",
+    cannotBlockSelf: "You cannot block yourself",
+    followingTypeInvalid: "followingType must be either Student or Org",
+    unableToFollowUser: "Unable to follow this user",
+    alreadyFollowingOrPending: "Already following or request pending",
+    studentNotFound: "Student not found",
+    followRequestNotFound: "Follow request not found",
+    followNotFound: "Follow not found",
+    pendingFollowRequestNotFound: "Pending follow request not found",
+    followerNotFound: "Follower not found",
+    blockNotFound: "Block not found",
+    alreadyBlockedStudent: "You have already blocked this student",
+} as const;
+
+export const socialRouteMessages = {
+    blockCreated: "Student blocked successfully",
+    blockRemoved: "Student unblocked successfully",
+    blockListFetched: "Block list retrieved successfully",
+    followRequestSent: "Follow request sent",
+    followRequestAccepted: "Follow request accepted",
+    followRequestRejected: "Follow request rejected",
+    unfollowed: "Unfollowed successfully",
+    followRequestCanceled: "Pending follow request canceled",
+    followerRemoved: "Follower removed successfully",
+    followersFetched: "Followers retrieved successfully",
+    followingFetched: "Following retrieved successfully",
+    pendingRequestsFetched: "Pending requests retrieved successfully",
+    sentPendingRequestsFetched: "Sent pending requests retrieved successfully",
+    relationshipFetched: "Relationship retrieved successfully",
+} as const;

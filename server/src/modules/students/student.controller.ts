@@ -1,6 +1,7 @@
-// server/src/modules/student/student.controller.ts
+// server/src/modules/students/student.controller.ts
 
 import { Request, Response } from "express";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import {
     ApiError,
     ApiResponse,
@@ -26,16 +27,27 @@ import {
     uploadStudentCoverPhoto,
     uploadStudentProfilePhoto,
 } from "./student.service";
+import { studentErrorMessages, studentRouteMessages } from "./student.messages";
 
 export const onboard = asyncHandler(async (req: Request, res: Response) => {
     const data: OnboardingInput = validateAndParse(onboardingSchema, req.body);
     const student = await onboardStudent(req.user!._id, data);
-    res.status(200).json(new ApiResponse(200, student, "Onboarding complete"));
+    res.status(HTTP_STATUS.OK).json(
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            student,
+            studentRouteMessages.onboardingComplete
+        )
+    );
 });
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
-    res.status(200).json(
-        new ApiResponse(200, req.user, "Current user fetched")
+    res.status(HTTP_STATUS.OK).json(
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            req.user,
+            studentRouteMessages.currentUserFetched
+        )
     );
 });
 
@@ -49,7 +61,13 @@ export const updateProfile = asyncHandler(
             req.user!._id.toString(),
             data
         );
-        res.status(200).json(new ApiResponse(200, updated, "Profile updated"));
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                updated,
+                studentRouteMessages.profileUpdated
+            )
+        );
     }
 );
 
@@ -63,7 +81,13 @@ export const updateHostel = asyncHandler(
             req.user!._id.toString(),
             data
         );
-        res.status(200).json(new ApiResponse(200, updated, "Hostel updated"));
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                updated,
+                studentRouteMessages.hostelUpdated
+            )
+        );
     }
 );
 
@@ -77,8 +101,12 @@ export const updatePrivacy = asyncHandler(
             req.user!._id.toString(),
             data
         );
-        res.status(200).json(
-            new ApiResponse(200, updated, "Privacy settings updated")
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                updated,
+                studentRouteMessages.privacySettingsUpdated
+            )
         );
     }
 );
@@ -86,20 +114,36 @@ export const updatePrivacy = asyncHandler(
 export const getStudentProfile = asyncHandler(
     async (req: Request, res: Response) => {
         const username = req.params.username as string;
-        if (!username) throw new ApiError(400, "Username is required");
+        if (!username) {
+            throw new ApiError(
+                HTTP_STATUS.BAD_REQUEST,
+                studentErrorMessages.usernameRequired
+            );
+        }
 
         const student = await getStudentByUsername(
             username,
             req.user!._id.toString()
         );
 
-        res.status(200).json(new ApiResponse(200, student, "Profile fetched"));
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                student,
+                studentRouteMessages.profileFetched
+            )
+        );
     }
 );
 
 export const updateProfilePhoto = asyncHandler(
     async (req: Request, res: Response) => {
-        if (!req.file) throw new ApiError(400, "No image provided");
+        if (!req.file) {
+            throw new ApiError(
+                HTTP_STATUS.BAD_REQUEST,
+                studentErrorMessages.noImageProvided
+            );
+        }
 
         const updated = await uploadStudentProfilePhoto(
             req.user!._id.toString(),
@@ -107,15 +151,24 @@ export const updateProfilePhoto = asyncHandler(
             req.file.mimetype
         );
 
-        res.status(200).json(
-            new ApiResponse(200, updated, "Profile photo updated")
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                updated,
+                studentRouteMessages.profilePhotoUpdated
+            )
         );
     }
 );
 
 export const updateCoverPhoto = asyncHandler(
     async (req: Request, res: Response) => {
-        if (!req.file) throw new ApiError(400, "No image provided");
+        if (!req.file) {
+            throw new ApiError(
+                HTTP_STATUS.BAD_REQUEST,
+                studentErrorMessages.noImageProvided
+            );
+        }
 
         const updated = await uploadStudentCoverPhoto(
             req.user!._id.toString(),
@@ -123,8 +176,12 @@ export const updateCoverPhoto = asyncHandler(
             req.file.mimetype
         );
 
-        res.status(200).json(
-            new ApiResponse(200, updated, "Cover photo updated")
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                updated,
+                studentRouteMessages.coverPhotoUpdated
+            )
         );
     }
 );

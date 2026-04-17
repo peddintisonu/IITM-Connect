@@ -1,4 +1,4 @@
-// server/src/shared/constants/student.constants.ts
+// server/src/modules/students/student.constants.ts
 
 export const ACCOUNT_TYPE = {
     PUBLIC: "public",

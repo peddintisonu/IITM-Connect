@@ -12,16 +12,21 @@
 //   → return all students this person has blocked
 
 import mongoose from "mongoose";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError } from "../../shared/utils";
 import { Block } from "./block.model";
 import { Follow } from "./follow.model";
+import { socialErrorMessages } from "./socialMessages";
 
 export const blockStudent = async (
     blockerId: mongoose.Types.ObjectId,
     blockedId: mongoose.Types.ObjectId
 ) => {
     if (blockerId.equals(blockedId)) {
-        throw new ApiError(400, "You cannot block yourself");
+        throw new ApiError(
+            HTTP_STATUS.BAD_REQUEST,
+            socialErrorMessages.cannotBlockSelf
+        );
     }
 
     const existingBlock = await Block.findOne({
@@ -30,7 +35,10 @@ export const blockStudent = async (
     });
 
     if (existingBlock) {
-        throw new ApiError(400, "You have already blocked this student");
+        throw new ApiError(
+            HTTP_STATUS.BAD_REQUEST,
+            socialErrorMessages.alreadyBlockedStudent
+        );
     }
 
     await Follow.deleteMany({
@@ -58,7 +66,10 @@ export const unblockStudent = async (
     });
 
     if (!block) {
-        throw new ApiError(404, "Block not found");
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            socialErrorMessages.blockNotFound
+        );
     }
 
     return block;

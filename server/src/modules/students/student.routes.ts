@@ -1,4 +1,4 @@
-// server/src/modules/student/student.routes.ts
+// server/src/modules/students/student.routes.ts
 
 import { Router } from "express";
 import {

@@ -1,4 +1,4 @@
-import { IStudent } from "../modules/student/student.model";
+import { IStudent } from "../modules/students/student.model";
 
 declare global {
     namespace Express {
