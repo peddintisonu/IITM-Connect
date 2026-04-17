@@ -4,6 +4,7 @@ import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import {
     protectRoute,
     redirectIfAuthenticated,
+    requireOnboardingComplete,
 } from "../../shared/middleware/auth.middleware";
 import { ApiResponse } from "../../shared/utils";
 import {
@@ -47,9 +48,14 @@ router.get("/failure", (req, res) => {
 router.get("/refresh", refreshToken);
 
 router.get("/logout", protectRoute, logout);
-router.post("/logout-all", protectRoute, logoutAll);
+router.post("/logout-all", protectRoute, requireOnboardingComplete, logoutAll);
 
-router.get("/sessions", protectRoute, getSessions);
-router.post("/sessions/:sessionId/logout", protectRoute, revokeSession);
+router.get("/sessions", protectRoute, requireOnboardingComplete, getSessions);
+router.post(
+    "/sessions/:sessionId/logout",
+    protectRoute,
+    requireOnboardingComplete,
+    revokeSession
+);
 
 export default router;

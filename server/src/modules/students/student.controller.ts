@@ -13,13 +13,17 @@ import {
     UpdateHostelInput,
     UpdatePrivacyInput,
     UpdateProfileInput,
+    UsernameAvailabilityInput,
     onboardingSchema,
     updateHostelSchema,
     updatePrivacySchema,
     updateProfileSchema,
+    usernameAvailabilitySchema,
 } from "../../validations/student.validation";
+import { studentErrorMessages, studentRouteMessages } from "./student.messages";
 import {
     changeStudentHostel,
+    checkUsernameAvailability,
     editPrivacySettings,
     editStudentProfile,
     getStudentByUsername,
@@ -27,7 +31,6 @@ import {
     uploadStudentCoverPhoto,
     uploadStudentProfilePhoto,
 } from "./student.service";
-import { studentErrorMessages, studentRouteMessages } from "./student.messages";
 
 export const onboard = asyncHandler(async (req: Request, res: Response) => {
     const data: OnboardingInput = validateAndParse(onboardingSchema, req.body);
@@ -50,6 +53,31 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
         )
     );
 });
+
+export const getUsernameAvailability = asyncHandler(
+    async (req: Request, res: Response) => {
+        const data: UsernameAvailabilityInput = validateAndParse(
+            usernameAvailabilitySchema,
+            req.query
+        );
+
+        const result = await checkUsernameAvailability(
+            data.username,
+            req.user?._id?.toString()
+        );
+
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                {
+                    username: data.username,
+                    available: result.available,
+                },
+                studentRouteMessages.usernameAvailabilityFetched
+            )
+        );
+    }
+);
 
 export const updateProfile = asyncHandler(
     async (req: Request, res: Response) => {

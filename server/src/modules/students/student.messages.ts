@@ -14,6 +14,7 @@ export const studentErrorMessages = {
 
 export const studentRouteMessages = {
     onboardingComplete: "Onboarding complete",
+    usernameAvailabilityFetched: "Username availability fetched",
     currentUserFetched: "Current user fetched",
     profileUpdated: "Profile updated",
     hostelUpdated: "Hostel updated",

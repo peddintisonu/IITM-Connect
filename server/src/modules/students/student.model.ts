@@ -1,5 +1,8 @@
 import mongoose, { Schema } from "mongoose";
 
+const DEFAULT_PUBLIC_HIDDEN_FIELDS = ["roomNo"] as const;
+const DEFAULT_PRIVATE_HIDDEN_FIELDS = ["rollNo", "hostel", "roomNo"] as const;
+
 export interface IRollNoHistory {
     rollNo: string;
     deptId: mongoose.Types.ObjectId;
@@ -45,6 +48,8 @@ export interface IStudent extends mongoose.Document {
     accountType: "public" | "private";
     privacySettings: {
         hiddenFields: string[];
+        publicHiddenFields: string[];
+        privateHiddenFields: string[];
     };
     incrementTokenVersion: () => Promise<void>;
 }
@@ -91,7 +96,15 @@ const privacySettingsSchema = new Schema(
     {
         hiddenFields: {
             type: [String],
-            default: ["roomNo"],
+            default: () => [...DEFAULT_PUBLIC_HIDDEN_FIELDS],
+        },
+        publicHiddenFields: {
+            type: [String],
+            default: () => [...DEFAULT_PUBLIC_HIDDEN_FIELDS],
+        },
+        privateHiddenFields: {
+            type: [String],
+            default: () => [...DEFAULT_PRIVATE_HIDDEN_FIELDS],
         },
     },
     { _id: false }
@@ -154,15 +167,6 @@ studentSchema.methods.incrementTokenVersion = async function () {
     this.tokenVersion += 1;
     await this.save();
 };
-
-studentSchema.pre("save", function () {
-    if (this.isModified("accountType")) {
-        const isPrivate = this.accountType === "private";
-        this.privacySettings.hiddenFields = isPrivate
-            ? ["rollNo", "hostel", "roomNo"]
-            : ["roomNo"];
-    }
-});
 
 const Student = mongoose.model<IStudent>("Student", studentSchema);
 

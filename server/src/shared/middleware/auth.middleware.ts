@@ -51,6 +51,28 @@ export const protectRoute = asyncHandler(async (req, res, next) => {
     next();
 });
 
+export const requireOnboardingComplete = asyncHandler(
+    async (req, res, next) => {
+        const student = req.user;
+
+        if (!student) {
+            throw new ApiError(
+                HTTP_STATUS.UNAUTHORIZED,
+                authErrorMessages.unauthorized
+            );
+        }
+
+        if (!student.isOnboarded) {
+            throw new ApiError(
+                HTTP_STATUS.FORBIDDEN,
+                "Onboarding required to access this resource"
+            );
+        }
+
+        next();
+    }
+);
+
 export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
     const accessToken = req.cookies.accessToken;
     if (!accessToken) return next();

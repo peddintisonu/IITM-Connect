@@ -74,6 +74,16 @@
  *               items:
  *                 type: string
  *               example: ["roomNo"]
+ *             publicHiddenFields:
+ *               type: array
+ *               items:
+ *                 type: string
+ *               example: ["roomNo"]
+ *             privateHiddenFields:
+ *               type: array
+ *               items:
+ *                 type: string
+ *               example: ["rollNo", "hostel", "roomNo"]
  *         currentRollNo:
  *           type: string
  *           example: "cs24b001"
@@ -181,6 +191,16 @@
  *             enum: [rollNo, batch, graduationYear, dept, course, hostel, roomNo, email]
  *           description: "Optional, fields to hide from public view"
  *           example: ["rollNo", "hostel", "roomNo"]
+ *
+ *     UsernameAvailabilityResponse:
+ *       type: object
+ *       properties:
+ *         username:
+ *           type: string
+ *           example: "jay_v"
+ *         available:
+ *           type: boolean
+ *           example: true
  *
  *     UpdateProfileInput:
  *       type: object
@@ -375,7 +395,7 @@
  *           schema:
  *             type: object
  *             properties:
- *               photo:
+ *               image:
  *                 type: string
  *                 format: binary
  *                 description: Image file (max 5MB)
@@ -399,6 +419,12 @@
  *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:
@@ -427,7 +453,7 @@
  *           schema:
  *             type: object
  *             properties:
- *               photo:
+ *               image:
  *                 type: string
  *                 format: binary
  *                 description: Image file (max 10MB)
@@ -451,6 +477,12 @@
  *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:
@@ -512,6 +544,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Student not found
  *         content:
@@ -555,6 +593,12 @@
  *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:
@@ -608,8 +652,57 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Student not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+
+/**
+ * @swagger
+ * /students/username-availability:
+ *   get:
+ *     summary: Check username availability
+ *     description: Returns whether a username is available for use.
+ *     tags: [Student]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: username
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Username to validate and check for availability
+ *         example: "jay_v"
+ *     responses:
+ *       200:
+ *         description: Username availability fetched
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/UsernameAvailabilityResponse'
+ *       400:
+ *         description: Invalid username format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
  *         content:
  *           application/json:
  *             schema:

@@ -35,3 +35,33 @@ export const STUDENT_PUBLIC_SELECT =
 
 export const STUDENT_REQUEST_SELECT =
     "-__v -profilePhotoPublicId -coverPhotoPublicId";
+
+export const HIDDEN_FIELD_TO_STUDENT_FIELD_MAP: Record<string, string> = {
+    rollNo: "currentRollNo",
+    hostel: "currentHostelId",
+    roomNo: "currentRoomNo",
+    batch: "currentBatch",
+    graduationYear: "graduationYear",
+    dept: "currentDeptId",
+    course: "currentCourseId",
+};
+
+export const ALLOWED_HIDDEN_FIELDS = [
+    "rollNo",
+    "batch",
+    "graduationYear",
+    "dept",
+    "course",
+    "hostel",
+    "roomNo",
+    "email",
+] as const;
+
+export type HiddenField = (typeof ALLOWED_HIDDEN_FIELDS)[number];
+
+export const DEFAULT_PUBLIC_HIDDEN_FIELDS = ["roomNo"] as const;
+export const DEFAULT_PRIVATE_HIDDEN_FIELDS = [
+    "rollNo",
+    "hostel",
+    "roomNo",
+] as const;

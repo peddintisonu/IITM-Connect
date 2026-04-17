@@ -19,22 +19,19 @@ import { Department } from "../core/models/department.model";
 import { Follow } from "../social/follow.model";
 import { isBlockedBetween } from "../social/relationships.utils";
 import {
+    HIDDEN_FIELD_TO_STUDENT_FIELD_MAP,
     STUDENT_PUBLIC_SELECT,
     STUDENT_SELF_SELECT,
 } from "./student.constants";
 import { studentErrorMessages } from "./student.messages";
 import Student from "./student.model";
-import { cleanFullName, parseRollNo } from "./student.utils";
-
-const hiddenFieldMap: Record<string, string> = {
-    rollNo: "currentRollNo",
-    hostel: "currentHostelId",
-    roomNo: "currentRoomNo",
-    batch: "currentBatch",
-    graduationYear: "graduationYear",
-    dept: "currentDeptId",
-    course: "currentCourseId",
-};
+import {
+    cleanFullName,
+    ensurePrivacySnapshots,
+    getDefaultHiddenFields,
+    parseRollNo,
+    toUniqueAllowedHiddenFields,
+} from "./student.utils";
 
 export const createStudentFromOAuth = async (
     email: string,
@@ -106,6 +103,20 @@ export const onboardStudent = async (
     validStudent.accountType = data.accountType;
     validStudent.isOnboarded = true;
 
+    ensurePrivacySnapshots(validStudent);
+    validStudent.privacySettings.hiddenFields = getDefaultHiddenFields(
+        validStudent.accountType
+    );
+    if (validStudent.accountType === "private") {
+        validStudent.privacySettings.privateHiddenFields = [
+            ...validStudent.privacySettings.hiddenFields,
+        ];
+    } else {
+        validStudent.privacySettings.publicHiddenFields = [
+            ...validStudent.privacySettings.hiddenFields,
+        ];
+    }
+
     if (data.currentHostelId) {
         validStudent.currentHostelId = new mongoose.Types.ObjectId(
             data.currentHostelId
@@ -169,6 +180,23 @@ export const editStudentProfile = async (
     return updated;
 };
 
+export const checkUsernameAvailability = async (
+    username: string,
+    currentStudentId?: string
+) => {
+    const existing = await Student.findOne({ username }).select("_id").lean();
+
+    if (!existing) {
+        return { available: true };
+    }
+
+    if (currentStudentId && existing._id.toString() === currentStudentId) {
+        return { available: true };
+    }
+
+    return { available: false };
+};
+
 export const changeStudentHostel = async (
     studentId: string,
     data: UpdateHostelInput
@@ -220,12 +248,54 @@ export const editPrivacySettings = async (
             studentErrorMessages.studentNotFound
         );
 
-    if (data.accountType) {
-        student.accountType = data.accountType;
-    }
+    ensurePrivacySnapshots(student);
+
+    const currentAccountType = student.accountType;
+    const targetAccountType = data.accountType ?? currentAccountType;
 
     if (data.hiddenFields) {
-        student.privacySettings.hiddenFields = data.hiddenFields;
+        const normalizedHiddenFields = toUniqueAllowedHiddenFields(
+            data.hiddenFields
+        );
+        const effectiveHiddenFields =
+            normalizedHiddenFields.length > 0
+                ? normalizedHiddenFields
+                : getDefaultHiddenFields(targetAccountType);
+
+        student.accountType = targetAccountType;
+        student.privacySettings.hiddenFields = effectiveHiddenFields;
+
+        if (targetAccountType === "private") {
+            student.privacySettings.privateHiddenFields = [
+                ...effectiveHiddenFields,
+            ];
+        } else {
+            student.privacySettings.publicHiddenFields = [
+                ...effectiveHiddenFields,
+            ];
+        }
+    } else if (data.accountType && targetAccountType !== currentAccountType) {
+        student.accountType = targetAccountType;
+
+        const restoredHiddenFields =
+            targetAccountType === "private"
+                ? student.privacySettings.privateHiddenFields
+                : student.privacySettings.publicHiddenFields;
+
+        student.privacySettings.hiddenFields =
+            restoredHiddenFields && restoredHiddenFields.length > 0
+                ? [...restoredHiddenFields]
+                : getDefaultHiddenFields(targetAccountType);
+    }
+
+    if (student.accountType === "private") {
+        student.privacySettings.privateHiddenFields = [
+            ...student.privacySettings.hiddenFields,
+        ];
+    } else {
+        student.privacySettings.publicHiddenFields = [
+            ...student.privacySettings.hiddenFields,
+        ];
     }
 
     await student.save();
@@ -288,7 +358,7 @@ export const getStudentByUsername = async (
     // follower or public account — strip hidden fields
     const studentObj = target.toObject();
     for (const field of target.privacySettings.hiddenFields) {
-        const actualField = hiddenFieldMap[field];
+        const actualField = HIDDEN_FIELD_TO_STUDENT_FIELD_MAP[field];
         if (actualField)
             delete studentObj[actualField as keyof typeof studentObj];
         delete studentObj["privacySettings" as keyof typeof studentObj];
@@ -372,3 +442,5 @@ export const uploadStudentCoverPhoto = async (
 
     return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
 };
+
+// TODO: strict image validation using size and dimenstions, aspect ratio etc and also add support for webp format for better compression and performance

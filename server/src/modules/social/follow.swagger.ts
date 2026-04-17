@@ -152,6 +152,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Follow not found
  *         content:
@@ -191,6 +197,12 @@
  *                       $ref: '#/components/schemas/Follow'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:
@@ -244,6 +256,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Follow request not found
  *         content:
@@ -289,6 +307,12 @@
  *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:
@@ -342,6 +366,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Follower not found
  *         content:
@@ -379,6 +409,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 
 /**
@@ -406,6 +442,12 @@
  *                         $ref: '#/components/schemas/Follow'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:
@@ -441,6 +483,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 
 /**
@@ -468,6 +516,12 @@
  *                         $ref: '#/components/schemas/Follow'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:
@@ -523,6 +577,12 @@
  *                           type: boolean
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:
