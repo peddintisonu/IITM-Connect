@@ -3,6 +3,7 @@ import express from "express";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import passport from "./config/passport";
+import morgan from "morgan";
 
 import authRoutes from "./modules/auth/auth.routes";
 import socialRoutes from "./modules/social/social.routes";
@@ -16,6 +17,7 @@ const app = express();
 const specs = swaggerJsdoc(swaggerOptions);
 
 app.use(express.json());
+app.use(morgan("dev"));
 app.use(cookieParser());
 app.use(passport.initialize());
 app.get("/", protectRoute, (req, res) => {
