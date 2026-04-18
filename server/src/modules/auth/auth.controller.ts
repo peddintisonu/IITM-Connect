@@ -43,7 +43,8 @@ export const googleCallback = asyncHandler(
             sessionContext
         );
 
-        setAuthCookies(res, accessToken, refreshToken).redirect("/");
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        setAuthCookies(res, accessToken, refreshToken).redirect(frontendUrl);
     }
 );
 
