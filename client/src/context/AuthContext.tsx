@@ -23,6 +23,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -32,6 +33,7 @@ export const useAuth = () => {
 };
 
 // Setup generic axios instance
+// eslint-disable-next-line react-refresh/only-export-components
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
   withCredentials: true, // Necessary for httpOnly cookies
@@ -41,19 +43,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUser = async () => {
+  const loadUserFromApi = async (): Promise<User | null> => {
     try {
       const response = await api.get('/api/v1/students/me');
       if (response.data?.success && response.data?.data) {
-        setUser(response.data.data);
-      } else {
-        setUser(null);
+        return response.data.data;
       }
-    } catch (error) {
-      setUser(null);
-    } finally {
-      setIsLoading(false);
+      return null;
+    } catch {
+      return null;
     }
+  };
+
+  const fetchUser = async () => {
+    const userData = await loadUserFromApi();
+    setUser(userData);
+    setIsLoading(false);
   };
 
   const logout = async () => {
@@ -66,7 +71,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    fetchUser();
+    let mounted = true;
+    loadUserFromApi().then((userData) => {
+      if (mounted) {
+        setUser(userData);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (
