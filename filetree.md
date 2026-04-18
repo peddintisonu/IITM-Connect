@@ -78,13 +78,13 @@
 │   │   ├── 📄 app.ts
 │   │   └── 📄 server.ts
 │   ├── ⚙️ .env.example
+│   ├── 📝 Current_Status.md
 │   ├── ⚙️ package.json
 │   └── ⚙️ tsconfig.json
 ├── ⚙️ .env.example
 ├── ⚙️ .gitignore
 ├── ⚙️ .prettierignore
 ├── ⚙️ .prettierrc
-├── 📝 Current_Status.md
 ├── 📝 PRD.md
 ├── 📝 README.md
 ├── 📄 eslint.config.mjs

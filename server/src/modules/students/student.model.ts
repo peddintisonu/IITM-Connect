@@ -3,6 +3,14 @@ import mongoose, { Schema } from "mongoose";
 const DEFAULT_PUBLIC_HIDDEN_FIELDS = ["roomNo"] as const;
 const DEFAULT_PRIVATE_HIDDEN_FIELDS = ["rollNo", "hostel", "roomNo"] as const;
 
+export const STUDENT_ROLE = {
+    STUDENT: "student",
+    ADMIN: "admin",
+    SUPER_ADMIN: "super_admin",
+} as const;
+
+export type StudentRole = (typeof STUDENT_ROLE)[keyof typeof STUDENT_ROLE];
+
 export interface IRollNoHistory {
     rollNo: string;
     deptId: mongoose.Types.ObjectId;
@@ -43,6 +51,7 @@ export interface IStudent extends mongoose.Document {
     rollNoHistory: IRollNoHistory[];
     hostelHistory: IHostelHistory[];
     status: "active" | "inactive" | "suspended";
+    role: StudentRole;
     isOnboarded: boolean;
     tokenVersion: number;
     accountType: "public" | "private";
@@ -149,6 +158,11 @@ const studentSchema = new mongoose.Schema<IStudent>(
             type: String,
             enum: ["active", "inactive", "suspended"],
             default: "active",
+        },
+        role: {
+            type: String,
+            enum: ["student", "admin", "super_admin"],
+            default: "student",
         },
         isOnboarded: { type: Boolean, default: false },
         tokenVersion: { type: Number, default: 0 },

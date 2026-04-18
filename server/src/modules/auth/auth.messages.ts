@@ -10,6 +10,8 @@ export const authErrorMessages = {
     tokenInvalidated: "Token invalidated, please login again",
     studentNotFound: "Student not found",
     unauthorized: "Unauthorized",
+    onboardingRequired: "Onboarding required to access this resource",
+    insufficientPermissions: "Insufficient permissions to access this resource",
     authenticationFailed: "Authentication failed",
 };
 

@@ -1,5 +1,6 @@
 // server/src/shared/middleware/auth.middleware.ts
 
+import { ENV } from "../../config/env";
 import { authErrorMessages } from "../../modules/auth/auth.messages";
 import Session from "../../modules/auth/session.model";
 import {
@@ -9,7 +10,7 @@ import {
     validateActiveSession,
     validateAuthTokenVersion,
 } from "../../modules/auth/utils/index";
-import Student from "../../modules/students/student.model";
+import Student, { StudentRole } from "../../modules/students/student.model";
 import { HTTP_STATUS } from "../constants/http-status.constants";
 import { ApiError, asyncHandler } from "../utils";
 
@@ -65,13 +66,34 @@ export const requireOnboardingComplete = asyncHandler(
         if (!student.isOnboarded) {
             throw new ApiError(
                 HTTP_STATUS.FORBIDDEN,
-                "Onboarding required to access this resource"
+                authErrorMessages.onboardingRequired
             );
         }
 
         next();
     }
 );
+
+export const requireRoles = (...allowedRoles: StudentRole[]) =>
+    asyncHandler(async (req, res, next) => {
+        const student = req.user;
+
+        if (!student) {
+            throw new ApiError(
+                HTTP_STATUS.UNAUTHORIZED,
+                authErrorMessages.unauthorized
+            );
+        }
+
+        if (!allowedRoles.includes(student.role)) {
+            throw new ApiError(
+                HTTP_STATUS.FORBIDDEN,
+                authErrorMessages.insufficientPermissions
+            );
+        }
+
+        next();
+    });
 
 export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
     const accessToken = req.cookies.accessToken;
@@ -96,7 +118,7 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
         );
 
         // return res.redirect("/");
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = ENV.FRONTEND_URL;
         return res.redirect(frontendUrl);
     } catch {
         return next();

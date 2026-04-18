@@ -130,6 +130,10 @@
  *           type: string
  *           enum: [active, inactive, suspended]
  *           default: active
+ *         role:
+ *           type: string
+ *           enum: [student, admin, super_admin]
+ *           default: student
  *         isOnboarded:
  *           type: boolean
  *           default: false
@@ -335,7 +339,7 @@
  * /students/me:
  *   get:
  *     summary: Get current student profile
- *     description: Retrieves the authenticated student's own profile information.
+ *     description: Retrieves the authenticated student's own profile information with reference IDs (currentDeptId/currentCourseId/currentHostelId).
  *     tags: [Student]
  *     security:
  *       - cookieAuth: []
@@ -415,6 +419,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 
 /**
@@ -464,6 +474,12 @@
  *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:

@@ -1,5 +1,3 @@
-// server/src/seeds/masterData.constants.ts
-
 export const COURSES = [
     {
         code: "B",

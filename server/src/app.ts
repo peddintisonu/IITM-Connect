@@ -8,6 +8,7 @@ import { corsOptions } from "./config/cors";
 import passport from "./config/passport";
 
 import authRoutes from "./modules/auth/auth.routes";
+import masterDataRoutes from "./modules/core/masterData.routes";
 import socialRoutes from "./modules/social/social.routes";
 import studentRoutes from "./modules/students/student.routes";
 
@@ -28,6 +29,7 @@ app.get("/", protectRoute, (req, res) => {
 });
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/master-data", masterDataRoutes);
 app.use("/api/v1/students", studentRoutes);
 app.use("/api/v1/social", socialRoutes);
 app.get("/api/v1/health", (req, res) => {

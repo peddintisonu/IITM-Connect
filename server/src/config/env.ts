@@ -18,6 +18,7 @@ const schema = z.object({
     ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
     REFRESH_TOKEN_EXPIRES_IN: z.string().default("7d"),
     CORS_ORIGINS: z.string().default("http://localhost:5173"),
+    FRONTEND_URL: z.string().default("http://localhost:5173"),
     CLOUDINARY_CLOUD_NAME: z.string(),
     CLOUDINARY_API_KEY: z.string(),
     CLOUDINARY_API_SECRET: z.string(),

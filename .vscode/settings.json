@@ -18,9 +18,11 @@
     "prettier.prettierPath": "./node_modules/prettier",
     "prettier.enableDebugLogs": true,
     "cSpell.words": [
+        "abhiramcode",
         "iitmconnect",
         "johndoe",
         "smail",
+        "Tapti",
         "Vardhan"
     ]
 }

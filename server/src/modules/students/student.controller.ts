@@ -30,6 +30,7 @@ import {
     checkUsernameAvailability,
     editPrivacySettings,
     editStudentProfile,
+    getCurrentStudent,
     getStudentByUsername,
     getStudentCards,
     onboardStudent,
@@ -51,10 +52,12 @@ export const onboard = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
+    const student = await getCurrentStudent(req.user!._id.toString());
+
     res.status(HTTP_STATUS.OK).json(
         new ApiResponse(
             HTTP_STATUS.OK,
-            req.user,
+            student,
             studentRouteMessages.currentUserFetched
         )
     );

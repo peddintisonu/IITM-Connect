@@ -73,6 +73,20 @@ export const createStudentFromOAuth = async (
     return student;
 };
 
+export const getCurrentStudent = async (studentId: string) => {
+    const student =
+        await Student.findById(studentId).select(STUDENT_SELF_SELECT);
+
+    if (!student) {
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            studentErrorMessages.studentNotFound
+        );
+    }
+
+    return student;
+};
+
 export const onboardStudent = async (
     studentId: mongoose.Types.ObjectId,
     data: OnboardingInput
