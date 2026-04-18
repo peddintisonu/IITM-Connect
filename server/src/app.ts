@@ -1,8 +1,10 @@
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import express from "express";
 import morgan from "morgan";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
+import { corsOptions } from "./config/cors";
 import passport from "./config/passport";
 
 import authRoutes from "./modules/auth/auth.routes";
@@ -17,6 +19,7 @@ const app = express();
 const specs = swaggerJsdoc(swaggerOptions);
 
 app.use(express.json());
+app.use(cors(corsOptions));
 app.use(morgan("dev"));
 app.use(cookieParser());
 app.use(passport.initialize());
