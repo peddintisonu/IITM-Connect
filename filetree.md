@@ -1,15 +1,73 @@
 # File Tree: IITM Connect
 
-**Generated:** 4/15/2026, 12:30:02 AM
+**Generated:** 4/19/2026, 3:46:24 AM
 **Root Path:** `d:\Projects\Web-Projects\IITM Connect`
 
 ```
 ├── 📁 client
-│   └── ⚙️ .gitkeep
+│   ├── 📁 docs
+│   │   ├── 📝 Frontend_API_Integration_Guide.md
+│   │   └── 📝 Frontend_Requirements.md
+│   ├── 📁 public
+│   │   ├── 🖼️ favicon.svg
+│   │   └── 🖼️ icons.svg
+│   ├── 📁 src
+│   │   ├── 📁 assets
+│   │   │   ├── 🖼️ hero.png
+│   │   │   ├── 🖼️ react.svg
+│   │   │   └── 🖼️ vite.svg
+│   │   ├── 📁 components
+│   │   │   ├── 📁 ui
+│   │   │   │   └── 📄 Button.tsx
+│   │   │   ├── 📄 Navigation.tsx
+│   │   │   └── 📄 ProtectedRoute.tsx
+│   │   ├── 📁 config
+│   │   │   └── 📄 env.ts
+│   │   ├── 📁 context
+│   │   │   └── 📄 AuthContext.tsx
+│   │   ├── 📁 hooks
+│   │   │   ├── 📄 useAuthSessions.ts
+│   │   │   ├── 📄 useSocial.ts
+│   │   │   └── 📄 useStudent.ts
+│   │   ├── 📁 lib
+│   │   │   └── 📄 utils.ts
+│   │   ├── 📁 pages
+│   │   │   ├── 📄 FollowersPage.tsx
+│   │   │   ├── 📄 HomePage.tsx
+│   │   │   ├── 📄 LandingPage.tsx
+│   │   │   ├── 📄 OnboardingPage.tsx
+│   │   │   ├── 📄 ProfilePage.tsx
+│   │   │   └── 📄 SettingsPage.tsx
+│   │   ├── 📁 services
+│   │   │   ├── 📄 api.ts
+│   │   │   ├── 📄 auth.service.ts
+│   │   │   ├── 📄 social.service.ts
+│   │   │   └── 📄 student.service.ts
+│   │   ├── 📁 types
+│   │   │   ├── 📄 session.types.ts
+│   │   │   ├── 📄 social.types.ts
+│   │   │   └── 📄 student.types.ts
+│   │   ├── 🎨 App.css
+│   │   ├── 📄 App.tsx
+│   │   ├── 🎨 index.css
+│   │   └── 📄 main.tsx
+│   ├── ⚙️ .env.example
+│   ├── ⚙️ .gitignore
+│   ├── 📝 README.md
+│   ├── 📄 eslint.config.js
+│   ├── 🌐 index.html
+│   ├── ⚙️ package.json
+│   ├── 📄 postcss.config.js
+│   ├── 📄 tailwind.config.js
+│   ├── ⚙️ tsconfig.app.json
+│   ├── ⚙️ tsconfig.json
+│   ├── ⚙️ tsconfig.node.json
+│   └── 📄 vite.config.ts
 ├── 📁 server
 │   ├── 📁 src
 │   │   ├── 📁 config
 │   │   │   ├── 📄 cloudinary.ts
+│   │   │   ├── 📄 cors.ts
 │   │   │   ├── 📄 db.ts
 │   │   │   ├── 📄 env.ts
 │   │   │   ├── 📄 passport.ts
@@ -22,16 +80,31 @@
 │   │   │   └── 📄 cloudinaryUpload.ts
 │   │   ├── 📁 modules
 │   │   │   ├── 📁 auth
+│   │   │   │   ├── 📁 utils
+│   │   │   │   │   ├── 📄 context.ts
+│   │   │   │   │   ├── 📄 cookie.ts
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   ├── 📄 session.ts
+│   │   │   │   │   └── 📄 token.ts
+│   │   │   │   ├── 📄 auth.constants.ts
 │   │   │   │   ├── 📄 auth.controller.ts
+│   │   │   │   ├── 📄 auth.messages.ts
 │   │   │   │   ├── 📄 auth.routes.ts
 │   │   │   │   ├── 📄 auth.service.ts
 │   │   │   │   ├── 📄 auth.swagger.ts
 │   │   │   │   └── 📄 session.model.ts
 │   │   │   ├── 📁 core
-│   │   │   │   └── 📁 models
-│   │   │   │       ├── 📄 course.model.ts
-│   │   │   │       ├── 📄 department.model.ts
-│   │   │   │       └── 📄 hostel.model.ts
+│   │   │   │   ├── 📁 constants
+│   │   │   │   ├── 📁 models
+│   │   │   │   │   ├── 📄 course.model.ts
+│   │   │   │   │   ├── 📄 department.model.ts
+│   │   │   │   │   └── 📄 hostel.model.ts
+│   │   │   │   ├── 📄 masterData.constants.ts
+│   │   │   │   ├── 📄 masterData.controller.ts
+│   │   │   │   ├── 📄 masterData.messages.ts
+│   │   │   │   ├── 📄 masterData.routes.ts
+│   │   │   │   ├── 📄 masterData.service.ts
+│   │   │   │   └── 📄 masterData.swagger.ts
 │   │   │   ├── 📁 social
 │   │   │   │   ├── 📄 block.controller.ts
 │   │   │   │   ├── 📄 block.model.ts
@@ -41,21 +114,44 @@
 │   │   │   │   ├── 📄 follow.model.ts
 │   │   │   │   ├── 📄 follow.service.ts
 │   │   │   │   ├── 📄 follow.swagger.ts
-│   │   │   │   └── 📄 social.routes.ts
-│   │   │   └── 📁 student
+│   │   │   │   ├── 📄 relationships.utils.ts
+│   │   │   │   ├── 📄 social.constants.ts
+│   │   │   │   ├── 📄 social.messages.ts
+│   │   │   │   ├── 📄 social.routes.ts
+│   │   │   │   └── 📄 socialMessages.ts
+│   │   │   └── 📁 students
+│   │   │       ├── 📁 utils
+│   │   │       │   ├── 📄 index.ts
+│   │   │       │   ├── 📄 privacy.ts
+│   │   │       │   ├── 📄 rollNo.ts
+│   │   │       │   └── 📄 search.ts
+│   │   │       ├── 📄 student.constants.ts
 │   │   │       ├── 📄 student.controller.ts
+│   │   │       ├── 📄 student.messages.ts
 │   │   │       ├── 📄 student.model.ts
 │   │   │       ├── 📄 student.routes.ts
 │   │   │       ├── 📄 student.service.ts
 │   │   │       └── 📄 student.swagger.ts
 │   │   ├── 📁 seeds
-│   │   │   ├── 📄 index.ts
-│   │   │   └── 📄 masterData.seed.ts
+│   │   │   ├── 📁 masterData
+│   │   │   │   ├── 📄 index.ts
+│   │   │   │   └── 📄 seed.ts
+│   │   │   ├── 📁 roles
+│   │   │   │   ├── 📄 index.ts
+│   │   │   │   └── 📄 seed.ts
+│   │   │   ├── 📁 shared
+│   │   │   │   └── 📄 runSeedTask.ts
+│   │   │   ├── 📁 testStudents
+│   │   │   │   ├── 📄 cleanup.index.ts
+│   │   │   │   ├── 📄 cleanup.ts
+│   │   │   │   ├── 📄 data.ts
+│   │   │   │   ├── 📄 index.ts
+│   │   │   │   └── 📄 seed.ts
+│   │   │   └── 📄 index.ts
 │   │   ├── 📁 shared
 │   │   │   ├── 📁 constants
-│   │   │   │   ├── 📄 auth.constants.ts
-│   │   │   │   ├── 📄 masterData.constants.ts
-│   │   │   │   ├── 📄 students.constants.ts
+│   │   │   │   ├── 📄 cors.constants.ts
+│   │   │   │   ├── 📄 http-status.constants.ts
 │   │   │   │   └── 📄 upload.constants.ts
 │   │   │   ├── 📁 docs
 │   │   │   │   └── 📄 base.swagger.ts
@@ -68,12 +164,12 @@
 │   │   │       ├── 📄 ApiResponse.ts
 │   │   │       ├── 📄 asyncHandler.ts
 │   │   │       ├── 📄 index.ts
-│   │   │       ├── 📄 parseExpiry.ts
-│   │   │       └── 📄 parseRollNo.ts
+│   │   │       ├── 📄 mongooseHelper.ts
+│   │   │       └── 📄 validationHandler.ts
 │   │   ├── 📁 types
-│   │   │   ├── ⚙️ .gitkeep
 │   │   │   └── 📄 express.d.ts
 │   │   ├── 📁 validations
+│   │   │   ├── 📄 masterData.validation.ts
 │   │   │   └── 📄 student.validation.ts
 │   │   ├── 📄 app.ts
 │   │   └── 📄 server.ts
@@ -86,6 +182,7 @@
 ├── ⚙️ .prettierignore
 ├── ⚙️ .prettierrc
 ├── 📝 PRD.md
+├── 📝 Product_Implementation_Blueprint.md
 ├── 📝 README.md
 ├── 📄 eslint.config.mjs
 ├── 📝 filetree.md
