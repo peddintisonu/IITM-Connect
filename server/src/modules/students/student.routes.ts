@@ -11,9 +11,11 @@ import {
 } from "../../shared/middleware/upload.middleware";
 import {
     getMe,
+    getStudentCardsController,
     getStudentProfile,
     getUsernameAvailability,
     onboard,
+    searchStudentsController,
     updateCoverPhoto,
     updateHostel,
     updatePrivacy,
@@ -58,6 +60,19 @@ router.patch(
     requireOnboardingComplete,
     updatePrivacy
 );
+router.post(
+    "/cards",
+    protectRoute,
+    requireOnboardingComplete,
+    getStudentCardsController
+);
+
+router.get(
+    "/search",
+    protectRoute,
+    requireOnboardingComplete,
+    searchStudentsController
+);
 
 router.get(
     "/:username",
@@ -68,4 +83,4 @@ router.get(
 
 export default router;
 
-// TODO: add student search with pagination and profile and cover photos delete endpoints and also add endpoint to fetch basic profile info (display name and profile photo) for a list of userIds for features like mutual followers, followers/following suggestions etc and report endpoint to report user for abuse
+// TODO: add profile and cover photos delete endpoints and also add endpoint to fetch basic profile info (display name and profile photo) for a list of userIds for features like mutual followers, followers/following suggestions etc and report endpoint to report user for abuse

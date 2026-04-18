@@ -4,6 +4,8 @@ import { z } from "zod";
 import {
     ACCOUNT_TYPE_ENUM,
     ALLOWED_HIDDEN_FIELDS,
+    STUDENT_SEARCH_LIMITS,
+    STUDENT_SEARCH_QUERY,
 } from "../modules/students/student.constants";
 
 export const onboardingSchema = z.object({
@@ -92,3 +94,38 @@ export const usernameAvailabilitySchema = z.object({
 export type UsernameAvailabilityInput = z.infer<
     typeof usernameAvailabilitySchema
 >;
+
+const OBJECT_ID_REGEX = /^[a-fA-F0-9]{24}$/;
+
+export const studentCardsSchema = z.object({
+    userIds: z
+        .array(
+            z
+                .string()
+                .regex(OBJECT_ID_REGEX, "Each userId must be a valid ObjectId")
+        )
+        .min(1, "At least one userId is required")
+        .max(100, "Maximum 100 userIds are allowed"),
+});
+
+export type StudentCardsInput = z.infer<typeof studentCardsSchema>;
+
+export const studentSearchSchema = z.object({
+    q: z
+        .string()
+        .trim()
+        .min(STUDENT_SEARCH_QUERY.minLength, "Search query is required")
+        .max(
+            STUDENT_SEARCH_QUERY.maxLength,
+            `Search query must be at most ${STUDENT_SEARCH_QUERY.maxLength} characters`
+        ),
+    limit: z.coerce
+        .number()
+        .int()
+        .min(STUDENT_SEARCH_LIMITS.min)
+        .max(STUDENT_SEARCH_LIMITS.max)
+        .default(STUDENT_SEARCH_LIMITS.default),
+    cursor: z.string().trim().optional(),
+});
+
+export type StudentSearchInput = z.infer<typeof studentSearchSchema>;

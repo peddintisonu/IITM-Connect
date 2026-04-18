@@ -202,6 +202,39 @@
  *           type: boolean
  *           example: true
  *
+ *     StudentCard:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           example: "65f1234567890abcdef12345"
+ *         displayName:
+ *           type: string
+ *           example: "John Doe"
+ *         username:
+ *           type: string
+ *           example: "john_doe"
+ *         profilePhoto:
+ *           type: string
+ *           format: uri
+ *         accountType:
+ *           type: string
+ *           enum: [public, private]
+ *
+ *     StudentSearchResponse:
+ *       type: object
+ *       properties:
+ *         items:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/StudentCard'
+ *         nextCursor:
+ *           type: string
+ *           nullable: true
+ *           description: Opaque cursor for the next page of results
+ *         hasMore:
+ *           type: boolean
+ *
  *     UpdateProfileInput:
  *       type: object
  *       properties:
@@ -318,6 +351,117 @@
  *                   properties:
  *                     data:
  *                       $ref: '#/components/schemas/Student'
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+
+/**
+ * @swagger
+ * /students/search:
+ *   get:
+ *     summary: Search students
+ *     description: Searches active onboarded students by display name tokens, initials, and username prefix. Supports cursor pagination.
+ *     tags: [Student]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search text for display name, initials, or username
+ *         example: rah
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 20
+ *           maximum: 50
+ *           default: 20
+ *         description: Page size
+ *       - in: query
+ *         name: cursor
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Opaque pagination cursor returned by the previous page
+ *     responses:
+ *       200:
+ *         description: Student search completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/StudentSearchResponse'
+ *       400:
+ *         description: Validation failed or invalid search cursor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+
+/**
+ * @swagger
+ * /students/cards:
+ *   post:
+ *     summary: Get minimal student cards by user IDs
+ *     description: Returns minimal profile cards for a list of user IDs, preserving input order and filtering blocked users.
+ *     tags: [Student]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userIds
+ *             properties:
+ *               userIds:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 100
+ *                 items:
+ *                   type: string
+ *                   example: "65f1234567890abcdef12345"
+ *     responses:
+ *       200:
+ *         description: Student cards fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/StudentCard'
+ *       400:
+ *         description: Validation failed or invalid user IDs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
  *         content:
