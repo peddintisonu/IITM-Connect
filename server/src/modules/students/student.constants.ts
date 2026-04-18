@@ -65,3 +65,20 @@ export const DEFAULT_PRIVATE_HIDDEN_FIELDS = [
     "hostel",
     "roomNo",
 ] as const;
+
+export const STUDENT_SEARCH_LIMITS = {
+    min: 20,
+    max: 50,
+    default: 20,
+} as const;
+
+export const STUDENT_SEARCH_QUERY = {
+    minLength: 1,
+    maxLength: 100,
+} as const;
+
+export const STUDENT_SEARCH_SCORE = {
+    usernamePrefix: 400,
+    initialsPrefix: 300,
+    tokenPrefix: 250,
+} as const;

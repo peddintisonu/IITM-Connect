@@ -10,28 +10,36 @@ import { UPLOAD_LIMITS } from "../../shared/constants/upload.constants";
 import { ApiError, ensureStudentExists } from "../../shared/utils";
 import {
     OnboardingInput,
+    StudentSearchInput,
     UpdateHostelInput,
     UpdatePrivacyInput,
     UpdateProfileInput,
 } from "../../validations/student.validation";
 import { Course } from "../core/models/course.model";
 import { Department } from "../core/models/department.model";
+import { Block } from "../social/block.model";
 import { Follow } from "../social/follow.model";
 import { isBlockedBetween } from "../social/relationships.utils";
 import {
     HIDDEN_FIELD_TO_STUDENT_FIELD_MAP,
     STUDENT_PUBLIC_SELECT,
+    STUDENT_SEARCH_SCORE,
     STUDENT_SELF_SELECT,
 } from "./student.constants";
 import { studentErrorMessages } from "./student.messages";
 import Student from "./student.model";
 import {
+    buildStudentSearchInitials,
     cleanFullName,
+    decodeStudentSearchCursor,
+    encodeStudentSearchCursor,
     ensurePrivacySnapshots,
     getDefaultHiddenFields,
+    normalizeStudentSearchQuery,
     parseRollNo,
+    splitStudentSearchQuery,
     toUniqueAllowedHiddenFields,
-} from "./student.utils";
+} from "./utils";
 
 export const createStudentFromOAuth = async (
     email: string,
@@ -195,6 +203,355 @@ export const checkUsernameAvailability = async (
     }
 
     return { available: false };
+};
+
+export const getStudentCards = async (viewerId: string, userIds: string[]) => {
+    const uniqueUserIds = Array.from(new Set(userIds));
+    const targetIds = uniqueUserIds
+        .filter((id) => id !== viewerId)
+        .map((id) => new mongoose.Types.ObjectId(id));
+
+    if (targetIds.length === 0) {
+        return [];
+    }
+
+    const viewerObjectId = new mongoose.Types.ObjectId(viewerId);
+
+    const [blockedRelations, students] = await Promise.all([
+        Block.find({
+            $or: [
+                { blockerId: viewerObjectId, blockedId: { $in: targetIds } },
+                { blockedId: viewerObjectId, blockerId: { $in: targetIds } },
+            ],
+        })
+            .select("blockerId blockedId")
+            .lean(),
+        Student.find({
+            _id: { $in: targetIds },
+            status: "active",
+            isOnboarded: true,
+        })
+            .select("_id displayName username profilePhoto accountType")
+            .lean(),
+    ]);
+
+    const blockedIdSet = new Set<string>();
+    for (const relation of blockedRelations) {
+        if (relation.blockerId.toString() === viewerId) {
+            blockedIdSet.add(relation.blockedId.toString());
+        } else {
+            blockedIdSet.add(relation.blockerId.toString());
+        }
+    }
+
+    const studentMap = new Map(
+        students
+            .filter((student) => !blockedIdSet.has(student._id.toString()))
+            .map((student) => [student._id.toString(), student])
+    );
+
+    return uniqueUserIds
+        .map((id) => studentMap.get(id))
+        .filter((student) => student !== undefined);
+};
+
+// TODO: add rate limiting to student search endpoint to prevent abuse and expensive broad queries
+
+export const searchStudents = async (
+    viewerId: string,
+    data: StudentSearchInput
+) => {
+    const normalizedQuery = normalizeStudentSearchQuery(data.q);
+    const queryTerms = splitStudentSearchQuery(normalizedQuery);
+    const queryInitials = buildStudentSearchInitials(normalizedQuery);
+    const compactQuery = queryTerms.join("");
+    const viewerObjectId = new mongoose.Types.ObjectId(viewerId);
+
+    const blockedRelations = await Block.find({
+        $or: [{ blockerId: viewerObjectId }, { blockedId: viewerObjectId }],
+    })
+        .select("blockerId blockedId")
+        .lean();
+
+    const blockedIds = new Set<string>();
+    for (const relation of blockedRelations) {
+        if (relation.blockerId.toString() === viewerId) {
+            blockedIds.add(relation.blockedId.toString());
+        } else {
+            blockedIds.add(relation.blockerId.toString());
+        }
+    }
+
+    const cursorData = data.cursor
+        ? (() => {
+              try {
+                  const parsed = decodeStudentSearchCursor(data.cursor!);
+                  if (parsed.q !== normalizedQuery) {
+                      throw new Error("Cursor query mismatch");
+                  }
+                  if (
+                      typeof parsed.score !== "number" ||
+                      typeof parsed.id !== "string" ||
+                      !mongoose.isValidObjectId(parsed.id)
+                  ) {
+                      throw new Error("Cursor shape mismatch");
+                  }
+
+                  return parsed;
+              } catch {
+                  throw new ApiError(
+                      HTTP_STATUS.BAD_REQUEST,
+                      studentErrorMessages.invalidSearchCursor
+                  );
+              }
+          })()
+        : null;
+
+    const searchName = {
+        $toLower: {
+            $trim: {
+                input: {
+                    $ifNull: ["$displayName", "$fullName"],
+                },
+            },
+        },
+    };
+
+    const searchTokens = {
+        $filter: {
+            input: { $split: [searchName, " "] },
+            as: "token",
+            cond: { $ne: ["$$token", ""] },
+        },
+    };
+
+    const pipeline: mongoose.PipelineStage[] = [
+        {
+            $match: {
+                _id: {
+                    $ne: viewerObjectId,
+                    ...(blockedIds.size > 0
+                        ? {
+                              $nin: Array.from(blockedIds).map(
+                                  (id) => new mongoose.Types.ObjectId(id)
+                              ),
+                          }
+                        : {}),
+                },
+                status: "active",
+                isOnboarded: true,
+            },
+        },
+        {
+            $addFields: {
+                studentSearchName: searchName,
+                studentSearchUsername: {
+                    $toLower: {
+                        $trim: {
+                            input: { $ifNull: ["$username", ""] },
+                        },
+                    },
+                },
+                studentSearchTokens: searchTokens,
+                studentSearchInitials: {
+                    $reduce: {
+                        input: searchTokens,
+                        initialValue: "",
+                        in: {
+                            $concat: [
+                                "$$value",
+                                {
+                                    $cond: [
+                                        {
+                                            $gt: [{ $strLenCP: "$$this" }, 0],
+                                        },
+                                        { $substrCP: ["$$this", 0, 1] },
+                                        "",
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+                studentSearchQueryTerms: queryTerms,
+                studentSearchQueryInitials: queryInitials,
+                studentSearchCompactQuery: compactQuery,
+            },
+        },
+        {
+            $addFields: {
+                studentSearchTokenMatches: {
+                    $cond: [
+                        { $gt: [{ $size: "$studentSearchQueryTerms" }, 0] },
+                        {
+                            $allElementsTrue: {
+                                $map: {
+                                    input: "$studentSearchQueryTerms",
+                                    as: "searchTerm",
+                                    in: {
+                                        $anyElementTrue: {
+                                            $map: {
+                                                input: "$studentSearchTokens",
+                                                as: "studentToken",
+                                                in: {
+                                                    $eq: [
+                                                        {
+                                                            $substrCP: [
+                                                                "$$studentToken",
+                                                                0,
+                                                                {
+                                                                    $strLenCP:
+                                                                        "$$searchTerm",
+                                                                },
+                                                            ],
+                                                        },
+                                                        "$$searchTerm",
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        false,
+                    ],
+                },
+                studentSearchInitialsMatch: {
+                    $and: [
+                        { $ne: ["$studentSearchQueryInitials", ""] },
+                        {
+                            $eq: [
+                                {
+                                    $substrCP: [
+                                        "$studentSearchInitials",
+                                        0,
+                                        {
+                                            $strLenCP:
+                                                "$studentSearchQueryInitials",
+                                        },
+                                    ],
+                                },
+                                "$studentSearchQueryInitials",
+                            ],
+                        },
+                    ],
+                },
+                studentSearchUsernameMatch: {
+                    $and: [
+                        { $ne: ["$studentSearchCompactQuery", ""] },
+                        {
+                            $eq: [
+                                {
+                                    $substrCP: [
+                                        "$studentSearchUsername",
+                                        0,
+                                        {
+                                            $strLenCP:
+                                                "$studentSearchCompactQuery",
+                                        },
+                                    ],
+                                },
+                                "$studentSearchCompactQuery",
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+        {
+            $addFields: {
+                studentSearchScore: {
+                    $add: [
+                        {
+                            $cond: [
+                                "$studentSearchUsernameMatch",
+                                STUDENT_SEARCH_SCORE.usernamePrefix,
+                                0,
+                            ],
+                        },
+                        {
+                            $cond: [
+                                "$studentSearchInitialsMatch",
+                                STUDENT_SEARCH_SCORE.initialsPrefix,
+                                0,
+                            ],
+                        },
+                        {
+                            $cond: [
+                                "$studentSearchTokenMatches",
+                                STUDENT_SEARCH_SCORE.tokenPrefix,
+                                0,
+                            ],
+                        },
+                    ],
+                },
+                studentSearchMatches: {
+                    $or: [
+                        "$studentSearchUsernameMatch",
+                        "$studentSearchInitialsMatch",
+                        "$studentSearchTokenMatches",
+                    ],
+                },
+            },
+        },
+        { $match: { studentSearchMatches: true } },
+    ];
+
+    if (cursorData) {
+        pipeline.push({
+            $match: {
+                $or: [
+                    { studentSearchScore: { $lt: cursorData.score } },
+                    {
+                        studentSearchScore: cursorData.score,
+                        _id: {
+                            $lt: new mongoose.Types.ObjectId(cursorData.id),
+                        },
+                    },
+                ],
+            },
+        });
+    }
+
+    pipeline.push(
+        { $sort: { studentSearchScore: -1, _id: -1 } },
+        { $limit: data.limit + 1 },
+        {
+            $project: {
+                studentSearchScore: 1,
+                _id: 1,
+                displayName: 1,
+                username: 1,
+                profilePhoto: 1,
+                accountType: 1,
+            },
+        }
+    );
+
+    const searchResults = await Student.aggregate(pipeline);
+    const hasMore = searchResults.length > data.limit;
+    const items = searchResults.slice(0, data.limit).map((student) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { studentSearchScore, ...item } = student;
+        return item;
+    });
+
+    const lastItem = searchResults[data.limit - 1];
+    const nextCursor =
+        hasMore && lastItem
+            ? encodeStudentSearchCursor({
+                  score: lastItem.studentSearchScore,
+                  id: lastItem._id.toString(),
+                  q: normalizedQuery,
+              })
+            : null;
+
+    return {
+        items,
+        nextCursor,
+        hasMore,
+    };
 };
 
 export const changeStudentHostel = async (
@@ -443,4 +800,4 @@ export const uploadStudentCoverPhoto = async (
     return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
 };
 
-// TODO: strict image validation using size and dimenstions, aspect ratio etc and also add support for webp format for better compression and performance
+// TODO: strict image validation using size and dimensions, aspect ratio etc and also add support for webp format for better compression and performance

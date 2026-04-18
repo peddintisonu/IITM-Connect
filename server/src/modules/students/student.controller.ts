@@ -10,11 +10,15 @@ import {
 } from "../../shared/utils";
 import {
     OnboardingInput,
+    StudentCardsInput,
+    StudentSearchInput,
     UpdateHostelInput,
     UpdatePrivacyInput,
     UpdateProfileInput,
     UsernameAvailabilityInput,
     onboardingSchema,
+    studentCardsSchema,
+    studentSearchSchema,
     updateHostelSchema,
     updatePrivacySchema,
     updateProfileSchema,
@@ -27,7 +31,9 @@ import {
     editPrivacySettings,
     editStudentProfile,
     getStudentByUsername,
+    getStudentCards,
     onboardStudent,
+    searchStudents,
     uploadStudentCoverPhoto,
     uploadStudentProfilePhoto,
 } from "./student.service";
@@ -159,6 +165,47 @@ export const getStudentProfile = asyncHandler(
                 HTTP_STATUS.OK,
                 student,
                 studentRouteMessages.profileFetched
+            )
+        );
+    }
+);
+
+export const getStudentCardsController = asyncHandler(
+    async (req: Request, res: Response) => {
+        const data: StudentCardsInput = validateAndParse(
+            studentCardsSchema,
+            req.body
+        );
+
+        const cards = await getStudentCards(
+            req.user!._id.toString(),
+            data.userIds
+        );
+
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                cards,
+                studentRouteMessages.cardsFetched
+            )
+        );
+    }
+);
+
+export const searchStudentsController = asyncHandler(
+    async (req: Request, res: Response) => {
+        const data: StudentSearchInput = validateAndParse(
+            studentSearchSchema,
+            req.query
+        );
+
+        const result = await searchStudents(req.user!._id.toString(), data);
+
+        res.status(HTTP_STATUS.OK).json(
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                result,
+                studentRouteMessages.searchFetched
             )
         );
     }

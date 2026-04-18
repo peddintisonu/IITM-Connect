@@ -1,5 +1,6 @@
 export const studentErrorMessages = {
     usernameRequired: "Username is required",
+    invalidSearchCursor: "Invalid search cursor",
     noImageProvided: "No image provided",
     studentNotFound: "Student not found",
     studentAlreadyOnboarded: "Student already onboarded",
@@ -10,6 +11,7 @@ export const studentErrorMessages = {
         "Hostel is required if room number is provided",
     profilePhotoTooLarge: "Profile photo must be under",
     coverPhotoTooLarge: "Cover photo must be under",
+    invalidUserIdFormat: "Invalid user ID format",
 } as const;
 
 export const studentRouteMessages = {
@@ -20,6 +22,8 @@ export const studentRouteMessages = {
     hostelUpdated: "Hostel updated",
     privacySettingsUpdated: "Privacy settings updated",
     profileFetched: "Profile fetched",
+    cardsFetched: "Student cards fetched",
+    searchFetched: "Student search fetched",
     profilePhotoUpdated: "Profile photo updated",
     coverPhotoUpdated: "Cover photo updated",
 } as const;
