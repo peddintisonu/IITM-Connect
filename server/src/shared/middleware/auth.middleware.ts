@@ -95,7 +95,9 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
             authStudent.tokenVersion
         );
 
-        return res.redirect("/");
+        // return res.redirect("/");
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        return res.redirect(frontendUrl);
     } catch {
         return next();
     }
