@@ -171,6 +171,7 @@ export const removeFollower = async (
     return follow;
 };
 
+// TODO: add cursor pagination (limit, cursor) for followers list and return { items, nextCursor, hasMore }
 export const getFollowers = async (studentId: mongoose.Types.ObjectId) => {
     const followers = await Follow.find({
         followingId: studentId,
@@ -180,6 +181,7 @@ export const getFollowers = async (studentId: mongoose.Types.ObjectId) => {
     return followers;
 };
 
+// TODO: add cursor pagination (limit, cursor) for following list and return { items, nextCursor, hasMore }
 export const getFollowing = async (studentId: mongoose.Types.ObjectId) => {
     const following = await Follow.find({
         followerId: studentId,
@@ -189,6 +191,7 @@ export const getFollowing = async (studentId: mongoose.Types.ObjectId) => {
     return following;
 };
 
+// TODO: add cursor pagination (limit, cursor) for incoming follow requests and return { items, nextCursor, hasMore }
 export const getPendingRequests = async (
     studentId: mongoose.Types.ObjectId
 ) => {
@@ -200,6 +203,7 @@ export const getPendingRequests = async (
     return requests;
 };
 
+// TODO: add cursor pagination (limit, cursor) for sent follow requests and return { items, nextCursor, hasMore }
 export const getSentPendingRequests = async (
     studentId: mongoose.Types.ObjectId
 ) => {

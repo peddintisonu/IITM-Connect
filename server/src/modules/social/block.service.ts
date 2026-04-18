@@ -92,6 +92,7 @@ export const unblockStudent = async (
     return block;
 };
 
+// TODO: add cursor pagination (limit, cursor) for blocked users list and return { items, nextCursor, hasMore }
 export const getBlockList = async (blockerId: mongoose.Types.ObjectId) => {
     const blocks = await Block.find({ blockerId }).populate(
         "blockedId",
