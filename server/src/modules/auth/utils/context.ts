@@ -1,16 +1,10 @@
+// server/src/modules/auth/utils/context.ts
+
 import { Request } from "express";
 import geoip from "geoip-lite";
-import jwt from "jsonwebtoken";
 import { UAParser } from "ua-parser-js";
 
-import { ENV } from "../../config/env";
-import {
-    authErrorMessages,
-    defaultSessionValues,
-    sessionLifetime,
-} from "../../shared/constants/auth.constants";
-import { ApiError } from "../../shared/utils";
-import Session from "./session.model";
+import { defaultSessionValues } from "../auth.constants";
 
 export interface SessionLocation {
     ip?: string;
@@ -22,12 +16,6 @@ export interface SessionContext {
     deviceInfo: string;
     userAgent: string;
     currentLocation: SessionLocation;
-}
-
-export interface SessionTokenPayload {
-    studentId: string;
-    tokenVersion: number;
-    sessionId: string;
 }
 
 export interface ExistingSessionContextSource {
@@ -89,58 +77,6 @@ const lookupLocation = (ipAddress: string): SessionLocation => {
         city: geo.city || undefined,
         country: geo.country || undefined,
     };
-};
-
-const decodeToken = (token: string, secret: string, tokenName: string) => {
-    try {
-        return jwt.verify(token, secret) as SessionTokenPayload;
-    } catch {
-        throw new ApiError(
-            401,
-            tokenName === "access"
-                ? authErrorMessages.invalidAccessToken
-                : authErrorMessages.invalidRefreshToken
-        );
-    }
-};
-
-export const decodeAccessToken = (accessToken: string) =>
-    decodeToken(accessToken, ENV.ACCESS_TOKEN_SECRET, "access");
-
-export const decodeRefreshToken = (refreshToken: string) =>
-    decodeToken(refreshToken, ENV.REFRESH_TOKEN_SECRET, "refresh");
-
-export const getSessionIdFromAccessToken = (accessToken: string) =>
-    decodeAccessToken(accessToken).sessionId;
-
-export const getSessionIdFromRefreshToken = (refreshToken: string) =>
-    decodeRefreshToken(refreshToken).sessionId;
-
-export const buildDeleteAt = (endedAt: Date) =>
-    new Date(endedAt.getTime() + sessionLifetime.retentionMs);
-
-export const endSession = async (
-    sessionId: string,
-    reason: "logout" | "expired" | "revoked",
-    endedAt = new Date()
-) => {
-    await Session.updateOne(
-        { _id: sessionId, endedAt: { $exists: false } },
-        {
-            $set: {
-                endedAt,
-                endReason: reason,
-                deletesAt: buildDeleteAt(endedAt),
-                revoked: reason === "revoked",
-                lastAccessedAt: endedAt,
-            },
-            $unset: {
-                refreshToken: "",
-                previousRefreshToken: "",
-                graceExpiresAt: "",
-            },
-        }
-    );
 };
 
 export const buildSessionContext = (req: Request): SessionContext => {

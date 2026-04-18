@@ -88,6 +88,18 @@
  *                         currentSessionId:
  *                           type: string
  *                           description: The session ID of the current device/session
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 
 /**
@@ -112,6 +124,18 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Session not found
  *         content:
@@ -209,12 +233,18 @@
  *     responses:
  *       200:
  *         description: Successfully rotated tokens
+ *       401:
+ *         description: Refresh token missing, invalid, or expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 
 /**
  * @swagger
  * /auth/logout:
- *   post:
+ *   get:
  *     summary: Logout from current device
  *     tags: [Auth]
  *     security:
@@ -222,6 +252,12 @@
  *     responses:
  *       200:
  *         description: Successfully logged out
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 
 /**
@@ -236,4 +272,16 @@
  *     responses:
  *       200:
  *         description: Successfully logged out of all sessions
+ *       401:
+ *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */

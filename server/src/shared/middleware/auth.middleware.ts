@@ -1,12 +1,26 @@
-import { decodeAccessToken, endSession } from "../../modules/auth/auth.utils";
+// server/src/shared/middleware/auth.middleware.ts
+
+import { authErrorMessages } from "../../modules/auth/auth.messages";
 import Session from "../../modules/auth/session.model";
-import Student from "../../modules/student/student.model";
-import { authErrorMessages } from "../constants/auth.constants";
+import {
+    decodeAccessToken,
+    ensureSessionExists,
+    ensureStudentExistsForAuth,
+    validateActiveSession,
+    validateAuthTokenVersion,
+} from "../../modules/auth/utils/index";
+import Student from "../../modules/students/student.model";
+import { HTTP_STATUS } from "../constants/http-status.constants";
 import { ApiError, asyncHandler } from "../utils";
 
 export const protectRoute = asyncHandler(async (req, res, next) => {
     const accessToken = req.cookies.accessToken;
-    if (!accessToken) throw new ApiError(401, authErrorMessages.noAccessToken);
+    if (!accessToken) {
+        throw new ApiError(
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.noAccessToken
+        );
+    }
 
     const decoded = decodeAccessToken(accessToken);
 
@@ -15,28 +29,49 @@ export const protectRoute = asyncHandler(async (req, res, next) => {
         Session.findById(decoded.sessionId),
     ]);
 
-    if (!student) throw new ApiError(401, authErrorMessages.studentNotFound);
-    if (!session) throw new ApiError(401, authErrorMessages.sessionExpired);
-    if (session.endedAt)
-        throw new ApiError(401, authErrorMessages.sessionEnded);
-    if (session.revoked)
-        throw new ApiError(401, authErrorMessages.sessionRevoked);
-    if (session.expiresAt <= new Date()) {
-        await endSession(session._id.toString(), "expired", new Date());
-        throw new ApiError(401, authErrorMessages.sessionExpired);
-    }
+    const authStudent = ensureStudentExistsForAuth(student);
+    const authSession = ensureSessionExists(
+        session,
+        authErrorMessages.sessionExpired
+    );
+    await validateActiveSession(authSession, {
+        checkRevoked: true,
+        endExpiredSession: true,
+    });
 
-    if (decoded.tokenVersion !== student.tokenVersion) {
-        throw new ApiError(401, authErrorMessages.tokenInvalidated);
-    }
+    validateAuthTokenVersion(decoded.tokenVersion, authStudent.tokenVersion);
 
+    // TODO: MongoDb bottleneck - update last 5 min accessed sessions or so
+    // no need to be precise can be approximate
     // Update lastAccessedAt for the session
-    session.lastAccessedAt = new Date();
-    await session.save();
+    authSession.lastAccessedAt = new Date();
+    await authSession.save();
 
-    req.user = student;
+    req.user = authStudent;
     next();
 });
+
+export const requireOnboardingComplete = asyncHandler(
+    async (req, res, next) => {
+        const student = req.user;
+
+        if (!student) {
+            throw new ApiError(
+                HTTP_STATUS.UNAUTHORIZED,
+                authErrorMessages.unauthorized
+            );
+        }
+
+        if (!student.isOnboarded) {
+            throw new ApiError(
+                HTTP_STATUS.FORBIDDEN,
+                "Onboarding required to access this resource"
+            );
+        }
+
+        next();
+    }
+);
 
 export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
     const accessToken = req.cookies.accessToken;
@@ -50,22 +85,18 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
             Session.findById(decoded.sessionId),
         ]);
 
-        if (!student) return next();
-        if (!session) return next();
-        if (session.endedAt) return next();
-        if (session.revoked) return next();
-        if (session.expiresAt <= new Date()) return next();
-        if (decoded.tokenVersion !== student.tokenVersion) return next();
+        const authStudent = ensureStudentExistsForAuth(student);
+        const authSession = ensureSessionExists(session);
+        await validateActiveSession(authSession, {
+            checkRevoked: true,
+        });
+        validateAuthTokenVersion(
+            decoded.tokenVersion,
+            authStudent.tokenVersion
+        );
 
         return res.redirect("/");
     } catch {
         return next();
     }
-});
-
-export const requireAuth = asyncHandler(async (req, res, next) => {
-    if (!req.user) {
-        throw new ApiError(401, authErrorMessages.unauthorized);
-    }
-    next();
 });

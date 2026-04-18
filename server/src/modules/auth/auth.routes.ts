@@ -1,11 +1,11 @@
 import { Router } from "express";
 import passport from "../../config/passport";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import {
     protectRoute,
     redirectIfAuthenticated,
-    requireAuth,
+    requireOnboardingComplete,
 } from "../../shared/middleware/auth.middleware";
-import { authRouteMessages } from "../../shared/constants/auth.constants";
 import { ApiResponse } from "../../shared/utils";
 import {
     getSessions,
@@ -15,6 +15,7 @@ import {
     refreshToken,
     revokeSession,
 } from "./auth.controller";
+import { authRouteMessages } from "./auth.messages";
 
 const router = Router();
 
@@ -34,22 +35,26 @@ router.get(
 );
 
 router.get("/failure", (req, res) => {
-    res.status(401).json(
-        new ApiResponse(401, null, authRouteMessages.authenticationFailed)
+    res.status(HTTP_STATUS.UNAUTHORIZED).json(
+        new ApiResponse(
+            HTTP_STATUS.UNAUTHORIZED,
+            null,
+            authRouteMessages.authenticationFailed
+        )
     );
 });
 
-// FIXME: intentionally using GET to refresh tokens from browser, but should ideally be POST since it modifies state (refreshes tokens and updates session info)
+// FIXME: intentionally using GET to refresh tokens from browser, but should ideally be POST since it modifies state (refreshes tokens and updates session info) will change to POST in future and update client accordingly
 router.get("/refresh", refreshToken);
 
-router.get("/logout", protectRoute, requireAuth, logout);
-router.post("/logout-all", protectRoute, requireAuth, logoutAll);
+router.get("/logout", protectRoute, logout);
+router.post("/logout-all", protectRoute, requireOnboardingComplete, logoutAll);
 
-router.get("/sessions", protectRoute, requireAuth, getSessions);
+router.get("/sessions", protectRoute, requireOnboardingComplete, getSessions);
 router.post(
     "/sessions/:sessionId/logout",
     protectRoute,
-    requireAuth,
+    requireOnboardingComplete,
     revokeSession
 );
 

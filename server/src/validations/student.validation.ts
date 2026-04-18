@@ -1,6 +1,10 @@
 // server/src/validations/student.validation.ts
 
 import { z } from "zod";
+import {
+    ACCOUNT_TYPE_ENUM,
+    ALLOWED_HIDDEN_FIELDS,
+} from "../modules/students/student.constants";
 
 export const onboardingSchema = z.object({
     displayName: z
@@ -18,7 +22,7 @@ export const onboardingSchema = z.object({
         .trim(),
     currentHostelId: z.string().optional(),
     currentRoomNo: z.number().optional(),
-    accountType: z.enum(["public", "private"]).default("public"),
+    accountType: z.enum(ACCOUNT_TYPE_ENUM).default("public"),
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
@@ -57,20 +61,9 @@ export const updateHostelSchema = z.object({
 
 export type UpdateHostelInput = z.infer<typeof updateHostelSchema>;
 
-const ALLOWED_HIDDEN_FIELDS = [
-    "rollNo",
-    "batch",
-    "graduationYear",
-    "dept",
-    "course",
-    "hostel",
-    "roomNo",
-    "email",
-] as const;
-
 export const updatePrivacySchema = z
     .object({
-        accountType: z.enum(["public", "private"]).optional(),
+        accountType: z.enum(ACCOUNT_TYPE_ENUM).optional(),
         hiddenFields: z.array(z.enum(ALLOWED_HIDDEN_FIELDS)).optional(),
     })
     .refine(
@@ -83,3 +76,19 @@ export const updatePrivacySchema = z
     );
 
 export type UpdatePrivacyInput = z.infer<typeof updatePrivacySchema>;
+
+export const usernameAvailabilitySchema = z.object({
+    username: z
+        .string()
+        .min(3, "Username must be at least 3 characters")
+        .max(30, "Username must be at most 30 characters")
+        .regex(
+            /^[a-z0-9_]+$/,
+            "Username can only have lowercase letters, numbers, underscores"
+        )
+        .trim(),
+});
+
+export type UsernameAvailabilityInput = z.infer<
+    typeof usernameAvailabilitySchema
+>;

@@ -6,7 +6,7 @@
 **Stack:** MERN + TypeScript  
 **Team:** 2 developers  
 **Start Date:** 11-04-2026  
-**Last Updated:** 17-04-2026
+**Last Updated:** 18-04-2026
 
 ---
 
@@ -126,13 +126,24 @@ LinkedIn (profiles + PORs)
     - `accountType`: `"public"` | `"private"`.
     - `currentHostelId`: Optional (day scholars skip).
     - `currentRoomNo`: Optional, required if hostel selected.
-- **Backend:** `PATCH /api/v1/student/onboarding`
-    - `privacySettings.hiddenFields` seeded based on `accountType`:
+- **Backend:** `PATCH /api/v1/students/onboarding`
+    - `privacySettings` now stores:
+        - `hiddenFields` (active set)
+        - `publicHiddenFields` (snapshot for public mode)
+        - `privateHiddenFields` (snapshot for private mode)
+    - Defaults:
         - **Public:** `["roomNo"]`
         - **Private:** `["rollNo", "hostel", "roomNo"]`
-    - `hostelHistory[]` seeded with first entry.
+    - `hostelHistory[]` seeded with first entry if hostel is provided.
     - `isOnboarded: true`.
-    - Redirect to feed.
+    - Non-onboarded users are restricted to onboarding-safe routes via middleware.
+
+### Username Availability Check
+
+- **Route:** `GET /api/v1/students/username-availability?username=...`
+- **Use:** Real-time onboarding check before submit.
+- **Validation:** Same username regex and length rules as onboarding/profile update.
+- **Response:** `{ username, available }`
 
 ### Token Strategy
 
@@ -140,56 +151,59 @@ LinkedIn (profiles + PORs)
 - **Refresh token:** 7 days, JWT in `httpOnly` cookie, hashed with SHA-256 before storing in DB.
 - **`sessionId`:** Embedded in JWT payload — direct link between access token and session.
 - **`tokenVersion`:** Embedded in JWT payload — checked on every request against DB value.
-- **Refresh token rotation:** Old session deleted, new session created on every refresh.
+- **Refresh token rotation:** Session is rotated in place with `previousRefreshToken` + grace window.
 - **Token invalidation:** Incrementing `tokenVersion` on Student instantly invalidates all sessions.
+- **Grace window:** Previous refresh token remains valid for a short period to avoid race-condition logouts.
 
 ### Session Management
 
 - **Storage:** One Session document per logged-in device.
-- **Schema:** `userId`, `refreshToken` (hashed), `deviceInfo` (browser + OS via `ua-parser-js`), `ipAddress`, `userAgent`, `lastAccessedAt`, `revoked`, `expiresAt`, `sessionId`.
-- **Cleanup:** TTL index on `expiresAt` for auto-deletion.
+- **Schema:** `userId`, `refreshToken` (hashed), `previousRefreshToken`, `deviceInfo`, `userAgent`, `initialLocation`, `currentLocation`, `lastAccessedAt`, `rotatedAt`, `graceExpiresAt`, `endedAt`, `endReason`, `deletesAt`, `revoked`, `expiresAt`.
+- **Cleanup:** TTL index on `deletesAt` for auto-deletion after retention period.
 - **Optimization:** `protectRoute` fetches student + session in parallel via `Promise.all`.
 
 ### Auth Service Logic
 
-- **`generateTokens(student, deviceInfo)`:** Creates session document, signs both tokens with `sessionId` + `tokenVersion`, hashes refresh token before saving.
-- **`refreshAccessToken(refreshToken)`:** Verifies JWT, finds session, compares hash, rotates session, checks `tokenVersion`.
-- **`logoutOne(refreshToken)`:** Verifies JWT, deletes session by `sessionId`.
-- **`logoutAll(studentId, currentSessionId)`:** Revokes all other sessions, increments `tokenVersion`, preserves the current device session.
+- **`generateTokens(student, sessionContext)`:** Creates session document, signs both tokens with `sessionId` + `tokenVersion`, hashes refresh token before saving.
+- **`refreshAccessToken(refreshToken, sessionContext)`:** Verifies JWT, validates session + token hash/grace window, rotates token state in same session, checks `tokenVersion`.
+- **`logoutOne(refreshToken)`:** Verifies JWT, ends current session with reason `logout`.
+- **`logoutAll(studentId, currentSessionId)`:** Revokes all other active sessions, increments `tokenVersion`, then rotates current session tokens.
 - **`listSessionsForUser(userId, currentSessionId)`:** Returns all sessions for the student, most recent first.
-- **`revokeSession(userId, sessionId)`:** Revokes a specific session.
+- **`revokeSession(userId, sessionId)`:** Ends a specific session with reason `revoked`.
 
 ### API Routes
 
 #### Auth Routes
 
-| Method | Route                                     | Protection                | Description                              |
-| :----- | :---------------------------------------- | :------------------------ | :--------------------------------------- |
-| GET    | `/api/v1/auth/google`                     | `redirectIfAuthenticated` | Triggers Google OAuth                    |
-| GET    | `/api/v1/auth/google/callback`            | —                         | Google redirect, issues tokens           |
-| GET    | `/api/v1/auth/me`                         | `protectRoute`            | Returns current student                  |
-| POST   | `/api/v1/auth/refresh`                    | —                         | Rotates tokens                           |
-| POST   | `/api/v1/auth/logout`                     | `protectRoute`            | Clears current session                   |
-| POST   | `/api/v1/auth/logout-all`                 | `protectRoute`            | Clears all sessions & increments version |
-| GET    | `/api/v1/auth/sessions`                   | `protectRoute`            | Lists sessions for current student       |
-| POST   | `/api/v1/auth/sessions/:sessionId/logout` | `protectRoute`            | Revokes a specific session               |
+| Method | Route                                     | Protection                                   | Description                                  |
+| :----- | :---------------------------------------- | :------------------------------------------- | :------------------------------------------- |
+| GET    | `/api/v1/auth/google`                     | `redirectIfAuthenticated`                    | Triggers Google OAuth                        |
+| GET    | `/api/v1/auth/google/callback`            | —                                            | Google redirect, issues tokens               |
+| GET    | `/api/v1/auth/failure`                    | —                                            | OAuth failure response                       |
+| GET    | `/api/v1/auth/refresh`                    | —                                            | Rotates tokens                               |
+| GET    | `/api/v1/auth/logout`                     | `protectRoute`                               | Ends current session                         |
+| POST   | `/api/v1/auth/logout-all`                 | `protectRoute` + `requireOnboardingComplete` | Revokes all other sessions + rotates current |
+| GET    | `/api/v1/auth/sessions`                   | `protectRoute` + `requireOnboardingComplete` | Lists sessions for current student           |
+| POST   | `/api/v1/auth/sessions/:sessionId/logout` | `protectRoute` + `requireOnboardingComplete` | Revokes a specific session                   |
 
 #### Student Routes
 
-| Method | Route                         | Protection     | Description                                 |
-| :----- | :---------------------------- | :------------- | :------------------------------------------ |
-| PATCH  | `/api/v1/students/onboarding` | `protectRoute` | Submits onboarding form                     |
-| GET    | `/api/v1/students/me`         | `protectRoute` | Returns current student                     |
-| PATCH  | `/api/v1/students/me/profile` | `protectRoute` | Updates text profile fields                 |
-| PATCH  | `/api/v1/students/me/hostel`  | `protectRoute` | Changes hostel and room, appends to history |
-| PATCH  | `/api/v1/students/me/privacy` | `protectRoute` | Updates accountType or hiddenFields         |
-| PATCH  | `/api/v1/students/me/photo`   | `protectRoute` | Uploads profile photo to Cloudinary         |
-| PATCH  | `/api/v1/students/me/cover`   | `protectRoute` | Uploads cover photo to Cloudinary           |
-| GET    | `/api/v1/students/:username`  | `protectRoute` | Returns privacy filtered student profile    |
+| Method | Route                                              | Protection                                   | Description                                 |
+| :----- | :------------------------------------------------- | :------------------------------------------- | :------------------------------------------ |
+| PATCH  | `/api/v1/students/onboarding`                      | `protectRoute`                               | Submits onboarding form                     |
+| GET    | `/api/v1/students/username-availability?username=` | `protectRoute`                               | Username availability check                 |
+| GET    | `/api/v1/students/me`                              | `protectRoute`                               | Returns current student                     |
+| PATCH  | `/api/v1/students/me/profile`                      | `protectRoute` + `requireOnboardingComplete` | Updates text profile fields                 |
+| PATCH  | `/api/v1/students/me/hostel`                       | `protectRoute` + `requireOnboardingComplete` | Changes hostel and room, appends to history |
+| PATCH  | `/api/v1/students/me/privacy`                      | `protectRoute` + `requireOnboardingComplete` | Updates accountType or hiddenFields         |
+| PATCH  | `/api/v1/students/me/photo`                        | `protectRoute` + `requireOnboardingComplete` | Uploads profile photo to Cloudinary         |
+| PATCH  | `/api/v1/students/me/cover`                        | `protectRoute` + `requireOnboardingComplete` | Uploads cover photo to Cloudinary           |
+| GET    | `/api/v1/students/:username`                       | `protectRoute` + `requireOnboardingComplete` | Returns privacy filtered student profile    |
 
 ### Middleware
 
 - **`protectRoute`:** Verifies JWT, checks `tokenVersion` against DB, verifies session exists.
+- **`requireOnboardingComplete`:** Restricts non-onboarded users to onboarding-safe routes.
 - **`redirectIfAuthenticated`:** Checks auth state before allowing access to `/google`, prevents duplicate sessions.
 
 ---
@@ -237,37 +251,36 @@ Block visibility rules
 
 ### Social Routes
 
-| Method | Route                                      | Description           |
-| ------ | ------------------------------------------ | --------------------- |
-| POST   | `/api/v1/social/follow/:followingId`       | Send follow request   |
-| DELETE | `/api/v1/social/follow/:followingId`       | Unfollow              |
-| POST   | `/api/v1/social/follow/:followerId/accept` | Accept follow request |
-| POST   | `/api/v1/social/follow/:followerId/reject` | Reject follow request |
-| DELETE | `/api/v1/social/follow/:followerId/remove` | Remove a follower     |
-| GET    | `/api/v1/social/follow/followers`          | Get my followers      |
-| GET    | `/api/v1/social/follow/following`          | Get my following      |
-| GET    | `/api/v1/social/follow/requests`           | Get pending requests  |
-| POST   | `/api/v1/social/block/:blockedId`          | Block a student       |
-| DELETE | `/api/v1/social/block/:blockedId`          | Unblock a student     |
-| GET    | `/api/v1/social/block`                     | Get my block list     |
+| Method | Route                                        | Description                |
+| ------ | -------------------------------------------- | -------------------------- |
+| POST   | `/api/v1/social/follow/:followingId`         | Send follow request        |
+| DELETE | `/api/v1/social/follow/:followingId`         | Unfollow                   |
+| DELETE | `/api/v1/social/follow/:followingId/request` | Cancel sent follow request |
+| POST   | `/api/v1/social/follow/:followerId/accept`   | Accept follow request      |
+| POST   | `/api/v1/social/follow/:followerId/reject`   | Reject follow request      |
+| DELETE | `/api/v1/social/follow/:followerId/remove`   | Remove a follower          |
+| GET    | `/api/v1/social/follow/followers`            | Get my followers           |
+| GET    | `/api/v1/social/follow/following`            | Get my following           |
+| GET    | `/api/v1/social/follow/requests`             | Get pending requests       |
+| GET    | `/api/v1/social/follow/requests/sent`        | Get sent pending requests  |
+| GET    | `/api/v1/social/relationship/:studentId`     | Get relationship state     |
+| POST   | `/api/v1/social/block/:blockedId`            | Block a student            |
+| DELETE | `/api/v1/social/block/:blockedId`            | Unblock a student          |
+| GET    | `/api/v1/social/block`                       | Get my block list          |
 
 ### Next Up Routes (Pre-Org)
 
-| Module  | Method | Route                                              | Description                                |
-| ------- | ------ | -------------------------------------------------- | ------------------------------------------ |
-| Student | GET    | `/api/v1/students/search?q=&limit=&cursor=`        | Student discovery with pagination          |
-| Student | GET    | `/api/v1/students/username-availability?username=` | Username availability check                |
-| Student | DELETE | `/api/v1/students/me/photo`                        | Remove profile photo                       |
-| Student | DELETE | `/api/v1/students/me/cover`                        | Remove cover photo                         |
-| Student | GET    | `/api/v1/students/:username/mutuals`               | Mutual followers/following snapshot        |
-| Student | POST   | `/api/v1/students/me/report`                       | Report profile or abuse                    |
-| Social  | DELETE | `/api/v1/social/follow/:followingId/request`       | Cancel outgoing pending follow request     |
-| Social  | GET    | `/api/v1/social/follow/requests/sent`              | List pending outgoing follow requests      |
-| Social  | GET    | `/api/v1/social/relationship/:studentId`           | One-shot relationship state for profile UI |
-| Social  | GET    | `/api/v1/social/suggestions`                       | Suggested people/accounts to follow        |
-| Core    | GET    | `/api/v1/meta/hostels`                             | Hostel lookup for forms and filters        |
-| Core    | GET    | `/api/v1/meta/departments`                         | Department lookup for forms and filters    |
-| Core    | GET    | `/api/v1/meta/courses`                             | Course lookup for forms and filters        |
+| Module  | Method | Route                                       | Description                             |
+| ------- | ------ | ------------------------------------------- | --------------------------------------- |
+| Student | GET    | `/api/v1/students/search?q=&limit=&cursor=` | Student discovery with pagination       |
+| Student | DELETE | `/api/v1/students/me/photo`                 | Remove profile photo                    |
+| Student | DELETE | `/api/v1/students/me/cover`                 | Remove cover photo                      |
+| Student | GET    | `/api/v1/students/:username/mutuals`        | Mutual followers/following snapshot     |
+| Student | POST   | `/api/v1/students/me/report`                | Report profile or abuse                 |
+| Social  | GET    | `/api/v1/social/suggestions`                | Suggested people/accounts to follow     |
+| Core    | GET    | `/api/v1/meta/hostels`                      | Hostel lookup for forms and filters     |
+| Core    | GET    | `/api/v1/meta/departments`                  | Department lookup for forms and filters |
+| Core    | GET    | `/api/v1/meta/courses`                      | Course lookup for forms and filters     |
 
 ---
 

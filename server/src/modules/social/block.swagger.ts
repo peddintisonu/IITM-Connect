@@ -66,6 +66,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  */
 
 /**
@@ -103,6 +109,12 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Block not found
  *         content:
@@ -136,6 +148,12 @@
  *                         $ref: '#/components/schemas/Block'
  *       401:
  *         description: Unauthorized - access token missing or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Onboarding required to access this resource
  *         content:
  *           application/json:
  *             schema:

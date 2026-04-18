@@ -2,20 +2,25 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import { ENV } from "../../config/env";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
+import { ApiError } from "../../shared/utils";
+import Student, { IStudent } from "../students/student.model";
 import {
-    authErrorMessages,
     defaultSessionValues,
     sessionLifetime,
     tokenExpiry,
-} from "../../shared/constants/auth.constants";
-import { ApiError } from "../../shared/utils";
-import Student, { IStudent } from "../student/student.model";
+} from "./auth.constants";
+import { authErrorMessages } from "./auth.messages";
+import Session from "./session.model";
 import {
     decodeRefreshToken,
     endSession,
+    ensureSessionExists,
+    ensureStudentExistsForAuth,
     type SessionContext,
-} from "./auth.utils";
-import Session from "./session.model";
+    validateActiveSession,
+    validateAuthTokenVersion,
+} from "./utils/index";
 
 const hashToken = (token: string) =>
     crypto.createHash("sha256").update(token).digest("hex");
@@ -104,19 +109,13 @@ export const refreshAccessToken = async (
 ) => {
     const decoded = decodeRefreshToken(refreshToken);
 
-    const session = await Session.findById(decoded.sessionId);
-    if (!session) {
-        throw new ApiError(401, authErrorMessages.sessionExpired);
-    }
-    if (session.endedAt) {
-        throw new ApiError(401, authErrorMessages.sessionEnded);
-    }
-
-    const sessionExpired = session.expiresAt <= new Date();
-    if (sessionExpired) {
-        await endSession(session.id, "expired", new Date());
-        throw new ApiError(401, authErrorMessages.sessionExpired);
-    }
+    const session = ensureSessionExists(
+        await Session.findById(decoded.sessionId),
+        authErrorMessages.sessionExpired
+    );
+    await validateActiveSession(session, {
+        endExpiredSession: true,
+    });
 
     const hashedToken = crypto
         .createHash("sha256")
@@ -130,17 +129,17 @@ export const refreshAccessToken = async (
         session.graceExpiresAt > new Date();
 
     if (!isCurrentRefreshToken && !isPreviousRefreshTokenInGraceWindow) {
-        throw new ApiError(401, authErrorMessages.invalidRefreshToken);
+        throw new ApiError(
+            HTTP_STATUS.UNAUTHORIZED,
+            authErrorMessages.invalidRefreshToken
+        );
     }
 
-    const student = await Student.findById(decoded.studentId);
-    if (!student) {
-        throw new ApiError(401, authErrorMessages.studentNotFound);
-    }
+    const student = ensureStudentExistsForAuth(
+        await Student.findById(decoded.studentId)
+    );
 
-    if (decoded.tokenVersion !== student.tokenVersion) {
-        throw new ApiError(401, authErrorMessages.tokenInvalidated);
-    }
+    validateAuthTokenVersion(decoded.tokenVersion, student.tokenVersion);
 
     return rotateExistingSessionTokens(session, student, sessionContext);
 };
@@ -148,13 +147,15 @@ export const refreshAccessToken = async (
 export const logoutOne = async (refreshToken: string) => {
     const decoded = decodeRefreshToken(refreshToken);
 
-    const session = await Session.findById(decoded.sessionId);
-    if (!session) {
-        throw new ApiError(400, authErrorMessages.sessionNotFound);
-    }
+    const session = ensureSessionExists(
+        await Session.findById(decoded.sessionId),
+        authErrorMessages.sessionNotFound,
+        HTTP_STATUS.NOT_FOUND
+    );
     await endSession(session.id, "logout", new Date());
 };
 
+// TODO: Add transaction support for logoutAll and revokeSession to ensure atomicity and consistency of session state changes
 export const logoutAll = async (
     studentId: string,
     currentSessionId?: string
@@ -200,8 +201,11 @@ export const listSessionsForUser = async (
 
 // Revoke (logout) a specific session for a user
 export const revokeSession = async (userId: string, sessionId: string) => {
-    const session = await Session.findOne({ _id: sessionId, userId });
-    if (!session) throw new ApiError(404, authErrorMessages.sessionNotFound);
+    const session = ensureSessionExists(
+        await Session.findOne({ _id: sessionId, userId }),
+        authErrorMessages.sessionNotFound,
+        HTTP_STATUS.NOT_FOUND
+    );
     if (session.endedAt || session.revoked) return;
     await endSession(session.id, "revoked", new Date());
 };

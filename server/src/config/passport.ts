@@ -1,8 +1,8 @@
 // server/src/config/passport.ts
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import Student from "../modules/student/student.model";
-import { createStudentFromOAuth } from "../modules/student/student.service";
+import Student from "../modules/students/student.model";
+import { createStudentFromOAuth } from "../modules/students/student.service";
 import { ENV } from "./env";
 
 passport.use(

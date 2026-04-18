@@ -1,4 +1,4 @@
-// server/src/shared/utils/cloudinaryUpload.ts
+// server/src/lib/cloudinaryUpload.ts
 
 import { UploadApiResponse } from "cloudinary";
 import cloudinary from "../config/cloudinary";

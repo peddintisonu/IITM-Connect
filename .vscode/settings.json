@@ -17,5 +17,5 @@
     ],
     "prettier.prettierPath": "./node_modules/prettier",
     "prettier.enableDebugLogs": true,
-    "cSpell.words": ["smail"]
+    "cSpell.words": ["johndoe", "smail", "Vardhan"]
 }

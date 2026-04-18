@@ -3,7 +3,7 @@
 import { Router } from "express";
 import {
     protectRoute,
-    requireAuth,
+    requireOnboardingComplete,
 } from "../../shared/middleware/auth.middleware";
 import {
     blockController,
@@ -26,83 +26,30 @@ import {
 
 const router = Router();
 
+router.use(protectRoute, requireOnboardingComplete);
+
 // block routes
-router.post("/block/:blockedId", protectRoute, requireAuth, blockController);
-router.delete(
-    "/block/:blockedId",
-    protectRoute,
-    requireAuth,
-    unblockController
-);
-router.get("/block", protectRoute, requireAuth, getBlockListController);
+router.post("/block/:blockedId", blockController);
+router.delete("/block/:blockedId", unblockController);
+router.get("/block", getBlockListController);
 
 // follow routes
-router.post(
-    "/follow/:followingId",
-    protectRoute,
-    requireAuth,
-    sendFollowRequestController
-);
+router.post("/follow/:followingId", sendFollowRequestController);
 router.delete(
     "/follow/:followingId/request",
-    protectRoute,
-    requireAuth,
     cancelSentFollowRequestController
 );
-router.delete(
-    "/follow/:followingId",
-    protectRoute,
-    requireAuth,
-    unfollowController
-);
-router.post(
-    "/follow/:followerId/accept",
-    protectRoute,
-    requireAuth,
-    acceptFollowRequestController
-);
-router.post(
-    "/follow/:followerId/reject",
-    protectRoute,
-    requireAuth,
-    rejectFollowRequestController
-);
-router.delete(
-    "/follow/:followerId/remove",
-    protectRoute,
-    requireAuth,
-    removeFollowerController
-);
-router.get(
-    "/follow/followers",
-    protectRoute,
-    requireAuth,
-    getFollowersController
-);
-router.get(
-    "/follow/following",
-    protectRoute,
-    requireAuth,
-    getFollowingController
-);
-router.get(
-    "/follow/requests",
-    protectRoute,
-    requireAuth,
-    getPendingRequestsController
-);
-router.get(
-    "/follow/requests/sent",
-    protectRoute,
-    requireAuth,
-    getSentPendingRequestsController
-);
+router.delete("/follow/:followingId", unfollowController);
+router.post("/follow/:followerId/accept", acceptFollowRequestController);
+router.post("/follow/:followerId/reject", rejectFollowRequestController);
+router.delete("/follow/:followerId/remove", removeFollowerController);
+router.get("/follow/followers", getFollowersController);
+router.get("/follow/following", getFollowingController);
+router.get("/follow/requests", getPendingRequestsController);
+router.get("/follow/requests/sent", getSentPendingRequestsController);
 
-router.get(
-    "/relationship/:studentId",
-    protectRoute,
-    requireAuth,
-    getRelationshipController
-);
+router.get("/relationship/:studentId", getRelationshipController);
 
 export default router;
+
+// TODO: add limit and pagination to followers/following endpoints, and also add endpoint to get mutual followers between two users

@@ -1,7 +1,9 @@
 // server/src/modules/social/block.controller.ts
 
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiResponse, asyncHandler, toObjectId } from "../../shared/utils";
 import { blockStudent, getBlockList, unblockStudent } from "./block.service";
+import { socialRouteMessages } from "./socialMessages";
 
 export const blockController = asyncHandler(async (req, res) => {
     const blockerId = req.user!._id;
@@ -9,7 +11,9 @@ export const blockController = asyncHandler(async (req, res) => {
 
     const block = await blockStudent(blockerId, blockedId);
 
-    res.json(new ApiResponse(200, block, "Student blocked successfully"));
+    res.json(
+        new ApiResponse(HTTP_STATUS.OK, block, socialRouteMessages.blockCreated)
+    );
 });
 
 export const unblockController = asyncHandler(async (req, res) => {
@@ -18,11 +22,23 @@ export const unblockController = asyncHandler(async (req, res) => {
 
     const unblock = await unblockStudent(blockerId, blockedId);
 
-    res.json(new ApiResponse(200, unblock, "Student unblocked successfully"));
+    res.json(
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            unblock,
+            socialRouteMessages.blockRemoved
+        )
+    );
 });
 
 export const getBlockListController = asyncHandler(async (req, res) => {
     const blockerId = req.user!._id;
     const blocks = await getBlockList(blockerId);
-    res.json(new ApiResponse(200, blocks, "Block list retrieved successfully"));
+    res.json(
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            blocks,
+            socialRouteMessages.blockListFetched
+        )
+    );
 });

@@ -1,4 +1,4 @@
-// server/src/shared/constants/social.constants.ts
+// server/src/modules/social/social.constants.ts
 
 export const FOLLOW_STATUS = {
     PENDING: "pending",

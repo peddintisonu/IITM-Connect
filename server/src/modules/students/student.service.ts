@@ -1,16 +1,13 @@
-// server/src/modules/student/student.service.ts
+// server/src/modules/students/student.service.ts
 
 import mongoose from "mongoose";
 import {
     deleteFromCloudinary,
     uploadToCloudinary,
 } from "../../lib/cloudinaryUpload";
-import {
-    STUDENT_PUBLIC_SELECT,
-    STUDENT_SELF_SELECT,
-} from "../../shared/constants/students.constants";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { UPLOAD_LIMITS } from "../../shared/constants/upload.constants";
-import { ApiError, cleanFullName, parseRollNo } from "../../shared/utils";
+import { ApiError, ensureStudentExists } from "../../shared/utils";
 import {
     OnboardingInput,
     UpdateHostelInput,
@@ -19,19 +16,22 @@ import {
 } from "../../validations/student.validation";
 import { Course } from "../core/models/course.model";
 import { Department } from "../core/models/department.model";
-import { Block } from "../social/block.model";
 import { Follow } from "../social/follow.model";
+import { isBlockedBetween } from "../social/relationships.utils";
+import {
+    HIDDEN_FIELD_TO_STUDENT_FIELD_MAP,
+    STUDENT_PUBLIC_SELECT,
+    STUDENT_SELF_SELECT,
+} from "./student.constants";
+import { studentErrorMessages } from "./student.messages";
 import Student from "./student.model";
-
-const hiddenFieldMap: Record<string, string> = {
-    rollNo: "currentRollNo",
-    hostel: "currentHostelId",
-    roomNo: "currentRoomNo",
-    batch: "currentBatch",
-    graduationYear: "graduationYear",
-    dept: "currentDeptId",
-    course: "currentCourseId",
-};
+import {
+    cleanFullName,
+    ensurePrivacySnapshots,
+    getDefaultHiddenFields,
+    parseRollNo,
+    toUniqueAllowedHiddenFields,
+} from "./student.utils";
 
 export const createStudentFromOAuth = async (
     email: string,
@@ -71,37 +71,58 @@ export const onboardStudent = async (
 ) => {
     const student = await Student.findById(studentId);
 
-    if (!student) throw new ApiError(404, "Student not found");
-    if (student.isOnboarded)
-        throw new ApiError(400, "Student already onboarded");
+    const validStudent = ensureStudentExists(student);
+    if (validStudent.isOnboarded)
+        throw new ApiError(
+            HTTP_STATUS.BAD_REQUEST,
+            studentErrorMessages.studentAlreadyOnboarded
+        );
 
     const existingUsername = await Student.findOne({ username: data.username });
-    if (existingUsername) throw new ApiError(409, "Username already taken");
+    if (existingUsername)
+        throw new ApiError(
+            HTTP_STATUS.CONFLICT,
+            studentErrorMessages.usernameAlreadyTaken
+        );
 
     if (data.currentHostelId && !data.currentRoomNo) {
         throw new ApiError(
-            400,
-            "Room number is required if hostel is selected"
+            HTTP_STATUS.BAD_REQUEST,
+            studentErrorMessages.roomNoRequiredIfHostelSelected
         );
     }
     if (data.currentRoomNo && !data.currentHostelId) {
         throw new ApiError(
-            400,
-            "Hostel is required if room number is provided"
+            HTTP_STATUS.BAD_REQUEST,
+            studentErrorMessages.hostelRequiredIfRoomProvided
         );
     }
 
-    student.displayName = data.displayName;
-    student.username = data.username;
-    student.accountType = data.accountType;
-    student.isOnboarded = true;
+    validStudent.displayName = data.displayName;
+    validStudent.username = data.username;
+    validStudent.accountType = data.accountType;
+    validStudent.isOnboarded = true;
+
+    ensurePrivacySnapshots(validStudent);
+    validStudent.privacySettings.hiddenFields = getDefaultHiddenFields(
+        validStudent.accountType
+    );
+    if (validStudent.accountType === "private") {
+        validStudent.privacySettings.privateHiddenFields = [
+            ...validStudent.privacySettings.hiddenFields,
+        ];
+    } else {
+        validStudent.privacySettings.publicHiddenFields = [
+            ...validStudent.privacySettings.hiddenFields,
+        ];
+    }
 
     if (data.currentHostelId) {
-        student.currentHostelId = new mongoose.Types.ObjectId(
+        validStudent.currentHostelId = new mongoose.Types.ObjectId(
             data.currentHostelId
         );
-        student.currentRoomNo = data.currentRoomNo;
-        student.hostelHistory = [
+        validStudent.currentRoomNo = data.currentRoomNo;
+        validStudent.hostelHistory = [
             {
                 hostelId: new mongoose.Types.ObjectId(data.currentHostelId),
                 roomNo: data.currentRoomNo!,
@@ -109,9 +130,9 @@ export const onboardStudent = async (
         ];
     }
 
-    await student.save();
+    await validStudent.save();
 
-    return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
+    return validStudent;
 };
 
 export const editStudentProfile = async (
@@ -121,7 +142,10 @@ export const editStudentProfile = async (
     if (data.username) {
         const existing = await Student.findOne({ username: data.username });
         if (existing && existing._id.toString() !== studentId) {
-            throw new ApiError(409, "Username already taken");
+            throw new ApiError(
+                HTTP_STATUS.CONFLICT,
+                studentErrorMessages.usernameAlreadyTaken
+            );
         }
     }
 
@@ -147,9 +171,30 @@ export const editStudentProfile = async (
         { returnDocument: "after" }
     ).select(STUDENT_SELF_SELECT);
 
-    if (!updated) throw new ApiError(404, "Student not found");
+    if (!updated)
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            studentErrorMessages.studentNotFound
+        );
 
     return updated;
+};
+
+export const checkUsernameAvailability = async (
+    username: string,
+    currentStudentId?: string
+) => {
+    const existing = await Student.findOne({ username }).select("_id").lean();
+
+    if (!existing) {
+        return { available: true };
+    }
+
+    if (currentStudentId && existing._id.toString() === currentStudentId) {
+        return { available: true };
+    }
+
+    return { available: false };
 };
 
 export const changeStudentHostel = async (
@@ -157,7 +202,11 @@ export const changeStudentHostel = async (
     data: UpdateHostelInput
 ) => {
     const student = await Student.findById(studentId);
-    if (!student) throw new ApiError(404, "Student not found");
+    if (!student)
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            studentErrorMessages.studentNotFound
+        );
 
     // Check if provided hostel and room are the same as current - if so, no update needed
     if (
@@ -193,14 +242,60 @@ export const editPrivacySettings = async (
     data: UpdatePrivacyInput
 ) => {
     const student = await Student.findById(studentId);
-    if (!student) throw new ApiError(404, "Student not found");
+    if (!student)
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            studentErrorMessages.studentNotFound
+        );
 
-    if (data.accountType) {
-        student.accountType = data.accountType;
-    }
+    ensurePrivacySnapshots(student);
+
+    const currentAccountType = student.accountType;
+    const targetAccountType = data.accountType ?? currentAccountType;
 
     if (data.hiddenFields) {
-        student.privacySettings.hiddenFields = data.hiddenFields;
+        const normalizedHiddenFields = toUniqueAllowedHiddenFields(
+            data.hiddenFields
+        );
+        const effectiveHiddenFields =
+            normalizedHiddenFields.length > 0
+                ? normalizedHiddenFields
+                : getDefaultHiddenFields(targetAccountType);
+
+        student.accountType = targetAccountType;
+        student.privacySettings.hiddenFields = effectiveHiddenFields;
+
+        if (targetAccountType === "private") {
+            student.privacySettings.privateHiddenFields = [
+                ...effectiveHiddenFields,
+            ];
+        } else {
+            student.privacySettings.publicHiddenFields = [
+                ...effectiveHiddenFields,
+            ];
+        }
+    } else if (data.accountType && targetAccountType !== currentAccountType) {
+        student.accountType = targetAccountType;
+
+        const restoredHiddenFields =
+            targetAccountType === "private"
+                ? student.privacySettings.privateHiddenFields
+                : student.privacySettings.publicHiddenFields;
+
+        student.privacySettings.hiddenFields =
+            restoredHiddenFields && restoredHiddenFields.length > 0
+                ? [...restoredHiddenFields]
+                : getDefaultHiddenFields(targetAccountType);
+    }
+
+    if (student.accountType === "private") {
+        student.privacySettings.privateHiddenFields = [
+            ...student.privacySettings.hiddenFields,
+        ];
+    } else {
+        student.privacySettings.publicHiddenFields = [
+            ...student.privacySettings.hiddenFields,
+        ];
     }
 
     await student.save();
@@ -215,7 +310,11 @@ export const getStudentByUsername = async (
     const target = await Student.findOne({ username }).select(
         STUDENT_PUBLIC_SELECT
     );
-    if (!target) throw new ApiError(404, "Student not found");
+    if (!target)
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            studentErrorMessages.studentNotFound
+        );
 
     const targetId = target._id.toString();
 
@@ -225,13 +324,15 @@ export const getStudentByUsername = async (
     }
 
     // check blocks in both directions
-    const block = await Block.findOne({
-        $or: [
-            { blockerId: viewerId, blockedId: targetId },
-            { blockerId: targetId, blockedId: viewerId },
-        ],
-    });
-    if (block) throw new ApiError(404, "Student not found");
+    const block = await isBlockedBetween(
+        new mongoose.Types.ObjectId(viewerId),
+        new mongoose.Types.ObjectId(targetId)
+    );
+    if (block)
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            studentErrorMessages.studentNotFound
+        );
 
     // check if viewer follows target
     const follow = await Follow.findOne({
@@ -257,7 +358,7 @@ export const getStudentByUsername = async (
     // follower or public account — strip hidden fields
     const studentObj = target.toObject();
     for (const field of target.privacySettings.hiddenFields) {
-        const actualField = hiddenFieldMap[field];
+        const actualField = HIDDEN_FIELD_TO_STUDENT_FIELD_MAP[field];
         if (actualField)
             delete studentObj[actualField as keyof typeof studentObj];
         delete studentObj["privacySettings" as keyof typeof studentObj];
@@ -269,17 +370,23 @@ export const getStudentByUsername = async (
 export const uploadStudentProfilePhoto = async (
     studentId: string,
     fileBuffer: Buffer,
-    mimeType: string
+    _mimeType: string
 ) => {
+    void _mimeType;
+
     if (fileBuffer.length > UPLOAD_LIMITS.profilePhoto.maxSizeBytes) {
         throw new ApiError(
-            400,
-            `Profile photo must be under ${UPLOAD_LIMITS.profilePhoto.maxSizeMb}MB`
+            HTTP_STATUS.BAD_REQUEST,
+            `${studentErrorMessages.profilePhotoTooLarge} ${UPLOAD_LIMITS.profilePhoto.maxSizeMb}MB`
         );
     }
 
     const student = await Student.findById(studentId);
-    if (!student) throw new ApiError(404, "Student not found");
+    if (!student)
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            studentErrorMessages.studentNotFound
+        );
 
     if (student.profilePhotoPublicId) {
         await deleteFromCloudinary(student.profilePhotoPublicId);
@@ -301,17 +408,23 @@ export const uploadStudentProfilePhoto = async (
 export const uploadStudentCoverPhoto = async (
     studentId: string,
     fileBuffer: Buffer,
-    mimeType: string
+    _mimeType: string
 ) => {
+    void _mimeType;
+
     if (fileBuffer.length > UPLOAD_LIMITS.coverPhoto.maxSizeBytes) {
         throw new ApiError(
-            400,
-            `Cover photo must be under ${UPLOAD_LIMITS.coverPhoto.maxSizeMb}MB`
+            HTTP_STATUS.BAD_REQUEST,
+            `${studentErrorMessages.coverPhotoTooLarge} ${UPLOAD_LIMITS.coverPhoto.maxSizeMb}MB`
         );
     }
 
     const student = await Student.findById(studentId);
-    if (!student) throw new ApiError(404, "Student not found");
+    if (!student)
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            studentErrorMessages.studentNotFound
+        );
 
     if (student.coverPhotoPublicId) {
         await deleteFromCloudinary(student.coverPhotoPublicId);
@@ -329,3 +442,5 @@ export const uploadStudentCoverPhoto = async (
 
     return await Student.findById(studentId).select(STUDENT_SELF_SELECT);
 };
+
+// TODO: strict image validation using size and dimenstions, aspect ratio etc and also add support for webp format for better compression and performance

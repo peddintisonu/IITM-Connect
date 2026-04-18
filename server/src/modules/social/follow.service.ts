@@ -1,14 +1,14 @@
 // server/src/modules/social/follow.service.ts
 
 import mongoose from "mongoose";
-import {
-    FOLLOW_STATUS,
-    FOLLOW_TYPE,
-} from "../../shared/constants/social.constants";
-import { ApiError } from "../../shared/utils";
-import Student from "../student/student.model";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
+import { ApiError, ensureStudentExists } from "../../shared/utils";
+import Student from "../students/student.model";
 import { Block } from "./block.model";
 import { Follow } from "./follow.model";
+import { isBlockedBetween } from "./relationships.utils";
+import { FOLLOW_STATUS, FOLLOW_TYPE } from "./social.constants";
+import { socialErrorMessages } from "./socialMessages";
 
 export const sendFollowRequest = async (
     followerId: mongoose.Types.ObjectId,
@@ -16,23 +16,27 @@ export const sendFollowRequest = async (
     followingType: "Student" | "Org"
 ) => {
     if (followerId.equals(followingId)) {
-        throw new ApiError(400, "You cannot follow yourself");
+        throw new ApiError(
+            HTTP_STATUS.BAD_REQUEST,
+            socialErrorMessages.cannotFollowSelf
+        );
     }
 
-    const isBlocked = await Block.findOne({
-        $or: [
-            { blockerId: followerId, blockedId: followingId },
-            { blockerId: followingId, blockedId: followerId },
-        ],
-    });
+    const isBlocked = await isBlockedBetween(followerId, followingId);
 
     if (isBlocked) {
-        throw new ApiError(403, "Unable to follow this user");
+        throw new ApiError(
+            HTTP_STATUS.FORBIDDEN,
+            socialErrorMessages.unableToFollowUser
+        );
     }
 
     const existingFollow = await Follow.findOne({ followerId, followingId });
     if (existingFollow) {
-        throw new ApiError(400, "Already following or request pending");
+        throw new ApiError(
+            HTTP_STATUS.BAD_REQUEST,
+            socialErrorMessages.alreadyFollowingOrPending
+        );
     }
 
     let status: typeof FOLLOW_STATUS.ACCEPTED | typeof FOLLOW_STATUS.PENDING =
@@ -40,10 +44,8 @@ export const sendFollowRequest = async (
 
     if (followingType === FOLLOW_TYPE.STUDENT) {
         const targetStudent = await Student.findById(followingId);
-        if (!targetStudent) {
-            throw new ApiError(404, "Student not found");
-        }
-        if (targetStudent.accountType === "private") {
+        const validStudent = ensureStudentExists(targetStudent);
+        if (validStudent.accountType === "private") {
             status = FOLLOW_STATUS.PENDING;
         }
     }
@@ -70,7 +72,10 @@ export const acceptFollowRequest = async (
     );
 
     if (!follow) {
-        throw new ApiError(404, "Follow request not found");
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            socialErrorMessages.followRequestNotFound
+        );
     }
 
     return follow;
@@ -87,7 +92,10 @@ export const rejectFollowRequest = async (
     });
 
     if (!follow) {
-        throw new ApiError(404, "Follow request not found");
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            socialErrorMessages.followRequestNotFound
+        );
     }
 
     return follow;
@@ -100,7 +108,10 @@ export const unfollow = async (
     const follow = await Follow.findOneAndDelete({ followerId, followingId });
 
     if (!follow) {
-        throw new ApiError(404, "Follow not found");
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            socialErrorMessages.followNotFound
+        );
     }
 
     return follow;
@@ -117,7 +128,10 @@ export const cancelSentFollowRequest = async (
     });
 
     if (!follow) {
-        throw new ApiError(404, "Pending follow request not found");
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            socialErrorMessages.pendingFollowRequestNotFound
+        );
     }
 
     return follow;
@@ -134,7 +148,10 @@ export const removeFollower = async (
     });
 
     if (!follow) {
-        throw new ApiError(404, "Follower not found");
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            socialErrorMessages.followerNotFound
+        );
     }
 
     return follow;
@@ -209,7 +226,7 @@ export const getRelationshipState = async (
                 { blockerId: viewerId, blockedId: targetId },
                 { blockerId: targetId, blockedId: viewerId },
             ],
-        }).select("blockerId blockedId"),
+        }).select("blockerId"),
         Follow.findOne({
             followerId: viewerId,
             followingId: targetId,
@@ -228,7 +245,10 @@ export const getRelationshipState = async (
         !targetStudent.isOnboarded ||
         targetStudent.status !== "active"
     ) {
-        throw new ApiError(404, "Student not found");
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            socialErrorMessages.studentNotFound
+        );
     }
 
     const blockedByMe = blockRecords.some((record) =>

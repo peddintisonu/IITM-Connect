@@ -1,6 +1,6 @@
 // server/src/modules/social/follow.controller.ts
 
-import { FOLLOW_TYPE } from "../../shared/constants/social.constants";
+import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import {
     ApiError,
     ApiResponse,
@@ -20,6 +20,8 @@ import {
     sendFollowRequest,
     unfollow,
 } from "./follow.service";
+import { FOLLOW_TYPE } from "./social.constants";
+import { socialErrorMessages, socialRouteMessages } from "./socialMessages";
 
 export const sendFollowRequestController = asyncHandler(async (req, res) => {
     const { followingType } = req.body;
@@ -27,7 +29,10 @@ export const sendFollowRequestController = asyncHandler(async (req, res) => {
         followingType !== FOLLOW_TYPE.STUDENT &&
         followingType !== FOLLOW_TYPE.ORG
     ) {
-        throw new ApiError(400, "followingType must be either Student or Org");
+        throw new ApiError(
+            HTTP_STATUS.BAD_REQUEST,
+            socialErrorMessages.followingTypeInvalid
+        );
     }
 
     const followerId = req.user!._id;
@@ -38,7 +43,13 @@ export const sendFollowRequestController = asyncHandler(async (req, res) => {
         followingId,
         followingType
     );
-    res.status(201).json(new ApiResponse(201, follow, "Follow request sent"));
+    res.status(HTTP_STATUS.CREATED).json(
+        new ApiResponse(
+            HTTP_STATUS.CREATED,
+            follow,
+            socialRouteMessages.followRequestSent
+        )
+    );
 });
 
 export const acceptFollowRequestController = asyncHandler(async (req, res) => {
@@ -46,7 +57,13 @@ export const acceptFollowRequestController = asyncHandler(async (req, res) => {
     const followerId = toObjectId(req.params.followerId);
 
     const follow = await acceptFollowRequest(studentId, followerId);
-    res.json(new ApiResponse(200, follow, "Follow request accepted"));
+    res.json(
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            follow,
+            socialRouteMessages.followRequestAccepted
+        )
+    );
 });
 
 export const rejectFollowRequestController = asyncHandler(async (req, res) => {
@@ -54,7 +71,13 @@ export const rejectFollowRequestController = asyncHandler(async (req, res) => {
     const followerId = toObjectId(req.params.followerId);
 
     const follow = await rejectFollowRequest(studentId, followerId);
-    res.json(new ApiResponse(200, follow, "Follow request rejected"));
+    res.json(
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            follow,
+            socialRouteMessages.followRequestRejected
+        )
+    );
 });
 
 export const unfollowController = asyncHandler(async (req, res) => {
@@ -62,7 +85,9 @@ export const unfollowController = asyncHandler(async (req, res) => {
     const followingId = toObjectId(req.params.followingId);
 
     const follow = await unfollow(followerId, followingId);
-    res.json(new ApiResponse(200, follow, "Unfollowed successfully"));
+    res.json(
+        new ApiResponse(HTTP_STATUS.OK, follow, socialRouteMessages.unfollowed)
+    );
 });
 
 export const cancelSentFollowRequestController = asyncHandler(
@@ -72,7 +97,11 @@ export const cancelSentFollowRequestController = asyncHandler(
 
         const follow = await cancelSentFollowRequest(followerId, followingId);
         res.json(
-            new ApiResponse(200, follow, "Pending follow request canceled")
+            new ApiResponse(
+                HTTP_STATUS.OK,
+                follow,
+                socialRouteMessages.followRequestCanceled
+            )
         );
     }
 );
@@ -82,20 +111,34 @@ export const removeFollowerController = asyncHandler(async (req, res) => {
     const followerId = toObjectId(req.params.followerId);
 
     const follow = await removeFollower(studentId, followerId);
-    res.json(new ApiResponse(200, follow, "Follower removed successfully"));
+    res.json(
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            follow,
+            socialRouteMessages.followerRemoved
+        )
+    );
 });
 
 export const getFollowersController = asyncHandler(async (req, res) => {
     const followers = await getFollowers(req.user!._id);
     res.json(
-        new ApiResponse(200, followers, "Followers retrieved successfully")
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            followers,
+            socialRouteMessages.followersFetched
+        )
     );
 });
 
 export const getFollowingController = asyncHandler(async (req, res) => {
     const following = await getFollowing(req.user!._id);
     res.json(
-        new ApiResponse(200, following, "Following retrieved successfully")
+        new ApiResponse(
+            HTTP_STATUS.OK,
+            following,
+            socialRouteMessages.followingFetched
+        )
     );
 });
 
@@ -103,9 +146,9 @@ export const getPendingRequestsController = asyncHandler(async (req, res) => {
     const requests = await getPendingRequests(req.user!._id);
     res.json(
         new ApiResponse(
-            200,
+            HTTP_STATUS.OK,
             requests,
-            "Pending requests retrieved successfully"
+            socialRouteMessages.pendingRequestsFetched
         )
     );
 });
@@ -115,9 +158,9 @@ export const getSentPendingRequestsController = asyncHandler(
         const requests = await getSentPendingRequests(req.user!._id);
         res.json(
             new ApiResponse(
-                200,
+                HTTP_STATUS.OK,
                 requests,
-                "Sent pending requests retrieved successfully"
+                socialRouteMessages.sentPendingRequestsFetched
             )
         );
     }
@@ -131,9 +174,9 @@ export const getRelationshipController = asyncHandler(async (req, res) => {
 
     res.json(
         new ApiResponse(
-            200,
+            HTTP_STATUS.OK,
             relationship,
-            "Relationship retrieved successfully"
+            socialRouteMessages.relationshipFetched
         )
     );
 });

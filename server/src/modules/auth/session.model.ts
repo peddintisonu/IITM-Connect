@@ -69,3 +69,5 @@ sessionSchema.index({ userId: 1 });
 const Session = mongoose.model<ISession>("Session", sessionSchema);
 
 export default Session;
+
+// TODO: Add cron job to update endedAt date for expired sessions
