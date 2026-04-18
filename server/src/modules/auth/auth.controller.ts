@@ -42,9 +42,11 @@ export const googleCallback = asyncHandler(
             sessionContext
         );
 
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
         res.cookie("accessToken", accessToken, accessCookieOptions)
             .cookie("refreshToken", refreshToken, refreshCookieOptions)
-            .redirect("/");
+            .redirect(frontendUrl);
     }
 );
 

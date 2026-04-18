@@ -3,8 +3,24 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-black text-white font-sans antialiased;
+  :root {
+    --background: #ffffff;
+    --foreground: #0f172a;
+    --primary: #4f46e5;
+    --primary-foreground: #ffffff;
+    --card: #f8fafc;
+    --border: #e2e8f0;
+  }
+  .dark {
+    --background: #0f172a;
+    --foreground: #f8fafc;
+    --primary: #4f46e5;
+    --primary-foreground: #ffffff;
+    --card: #1e293b;
+    --border: #334155;
+  }
+  body, html {
+    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
     margin: 0;
     overflow-x: hidden;
   }
