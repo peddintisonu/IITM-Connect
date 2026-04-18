@@ -3,6 +3,7 @@
 import mongoose from "mongoose";
 import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError, ensureStudentExists } from "../../shared/utils";
+import { STUDENT_STATUS } from "../students/student.constants";
 import Student from "../students/student.model";
 import { Block } from "./block.model";
 import { Follow } from "./follow.model";
@@ -43,8 +44,21 @@ export const sendFollowRequest = async (
         FOLLOW_STATUS.ACCEPTED;
 
     if (followingType === FOLLOW_TYPE.STUDENT) {
-        const targetStudent = await Student.findById(followingId);
+        const targetStudent = await Student.findById(followingId).select(
+            "_id accountType status isOnboarded"
+        );
         const validStudent = ensureStudentExists(targetStudent);
+
+        if (
+            !validStudent.isOnboarded ||
+            validStudent.status !== STUDENT_STATUS.ACTIVE
+        ) {
+            throw new ApiError(
+                HTTP_STATUS.NOT_FOUND,
+                socialErrorMessages.studentNotFound
+            );
+        }
+
         if (validStudent.accountType === "private") {
             status = FOLLOW_STATUS.PENDING;
         }
@@ -236,14 +250,14 @@ export const getRelationshipState = async (
             followerId: targetId,
             followingId: viewerId,
             followingType: "Student",
-            status: "accepted",
+            status: FOLLOW_STATUS.ACCEPTED,
         }).select("_id"),
     ]);
 
     if (
         !targetStudent ||
         !targetStudent.isOnboarded ||
-        targetStudent.status !== "active"
+        targetStudent.status !== STUDENT_STATUS.ACTIVE
     ) {
         throw new ApiError(
             HTTP_STATUS.NOT_FOUND,
@@ -264,8 +278,8 @@ export const getRelationshipState = async (
     const canFollow =
         !blockedByMe &&
         !blockedMe &&
-        followingStatus !== "accepted" &&
-        followingStatus !== "pending";
+        followingStatus !== FOLLOW_STATUS.ACCEPTED &&
+        followingStatus !== FOLLOW_STATUS.PENDING;
 
     return {
         targetId: targetId.toString(),

@@ -14,6 +14,8 @@
 import mongoose from "mongoose";
 import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError } from "../../shared/utils";
+import { STUDENT_STATUS } from "../students/student.constants";
+import Student from "../students/student.model";
 import { Block } from "./block.model";
 import { Follow } from "./follow.model";
 import { socialErrorMessages } from "./socialMessages";
@@ -26,6 +28,21 @@ export const blockStudent = async (
         throw new ApiError(
             HTTP_STATUS.BAD_REQUEST,
             socialErrorMessages.cannotBlockSelf
+        );
+    }
+
+    const blockedStudent = await Student.findById(blockedId).select(
+        "_id status isOnboarded"
+    );
+
+    if (
+        !blockedStudent ||
+        !blockedStudent.isOnboarded ||
+        blockedStudent.status !== STUDENT_STATUS.ACTIVE
+    ) {
+        throw new ApiError(
+            HTTP_STATUS.NOT_FOUND,
+            socialErrorMessages.studentNotFound
         );
     }
 
