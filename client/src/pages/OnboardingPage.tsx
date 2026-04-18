@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { useAuth, api } from '../context/AuthContext';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { studentService } from '../services/student.service';
 import { useNavigate } from 'react-router-dom';
-import { Users, Layout, Shield, ArrowRight } from 'lucide-react';
+import { Button } from '../components/ui/Button';
 
 const OnboardingPage: React.FC = () => {
   const { user, refetchUser } = useAuth();
@@ -10,186 +11,175 @@ const OnboardingPage: React.FC = () => {
   const [formData, setFormData] = useState({
     displayName: user?.displayName || '',
     username: user?.username || '',
-    accountType: user?.accountType || 'public',
-    currentHostelId: '',
-    currentRoomNo: '',
+    accountType: (user?.accountType || 'public') as 'public' | 'private',
+    currentHostelId: user?.currentHostelId || '',
+    currentRoomNo: user?.currentRoomNo?.toString() || '',
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Username availability
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+
+  const checkUsername = useCallback(async (uname: string) => {
+    if (uname.length < 3) {
+      setUsernameStatus('idle');
+      return;
+    }
+    setUsernameStatus('checking');
+    try {
+      const result = await studentService.checkUsername(uname);
+      setUsernameStatus(result.available ? 'available' : 'taken');
+    } catch {
+      setUsernameStatus('idle');
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.username.length >= 3) {
+        checkUsername(formData.username);
+      }
+    }, 500); // debounce 500ms
+    return () => clearTimeout(timer);
+  }, [formData.username, checkUsername]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (usernameStatus === 'taken') {
+      setError('Username is already taken.');
+      return;
+    }
     setLoading(true);
     setError('');
 
     try {
-      const payload: any = {
+      await studentService.onboard({
         displayName: formData.displayName,
         username: formData.username,
         accountType: formData.accountType,
-      };
-
-      if (formData.currentHostelId) payload.currentHostelId = formData.currentHostelId;
-      if (formData.currentRoomNo) payload.currentRoomNo = parseInt(formData.currentRoomNo, 10);
-
-      await api.patch('/api/v1/students/onboarding', payload);
+        currentHostelId: formData.currentHostelId || undefined,
+        currentRoomNo: formData.currentRoomNo ? parseInt(formData.currentRoomNo) : undefined,
+      });
       await refetchUser();
       navigate('/home');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Something went wrong during onboarding.');
+    } catch (err) {
+      const errorResponse = err as { response?: { data?: { message?: string } } };
+      setError(errorResponse.response?.data?.message || 'Something went wrong during onboarding.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Left Half - Illustration */}
-      <div className="hidden lg:flex flex-1 flex-col justify-center items-center bg-primary/5 border-r border-border p-12">
-        <div className="max-w-md space-y-8">
+    <div className="min-h-screen flex bg-background font-sans text-foreground">
+      {/* Left panel */}
+      <div className="hidden lg:flex flex-1 flex-col justify-center items-center bg-primary/5 border-r border-border p-12 relative overflow-hidden">
+        <div className="max-w-md space-y-10 relative z-10">
           <div className="space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight text-foreground">Welcome to CampusOS</h1>
-            <p className="text-lg text-foreground/70">Connect with your peers, track clubs, and manage your college life seamlessly.</p>
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <span className="text-white text-xl leading-none font-bold block mb-0.5">✺</span>
+              </div>
+              <span className="text-2xl font-bold tracking-tight">CampusOS</span>
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight">Welcome aboard!</h1>
+            <p className="text-lg text-foreground/70 leading-relaxed">Set up your identity to start connecting with your campus community.</p>
           </div>
-          
-          <div className="space-y-6 pt-4">
-            <div className="flex items-center space-x-4 text-foreground/80">
-              <div className="p-3 bg-primary/10 rounded-xl text-primary"><Users size={24} /></div>
-              <div>
-                <h3 className="font-medium text-foreground">Unified Profile</h3>
-                <p className="text-sm">Consolidate your identity across IIT Madras.</p>
+
+          <div className="space-y-5 pt-4 border-t border-border">
+            {['Pick a unique username', 'Set your display name', 'Choose your privacy level'].map((step, i) => (
+              <div key={i} className="flex items-center space-x-4">
+                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm">{i + 1}</div>
+                <span className="font-medium text-foreground/80">{step}</span>
               </div>
-            </div>
-            <div className="flex items-center space-x-4 text-foreground/80">
-              <div className="p-3 bg-primary/10 rounded-xl text-primary"><Layout size={24} /></div>
-              <div>
-                <h3 className="font-medium text-foreground">Stay Updated</h3>
-                <p className="text-sm">Real-time club updates built in.</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4 text-foreground/80">
-              <div className="p-3 bg-primary/10 rounded-xl text-primary"><Shield size={24} /></div>
-              <div>
-                <h3 className="font-medium text-foreground">Verified PORs</h3>
-                <p className="text-sm">Never lose track of a responsibility.</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Right Half - Form */}
+      {/* Right panel — Form */}
       <div className="flex-1 flex flex-col justify-center px-8 sm:px-16 lg:px-24">
         <div className="w-full max-w-md mx-auto space-y-8">
           <div>
-            <h2 className="text-3xl font-bold text-foreground tracking-tight">Complete your profile</h2>
-            <p className="mt-2 text-sm text-foreground/60 text-balance">Just a few details to get you formally registered onto CampusOS.</p>
+            <h2 className="text-3xl font-bold tracking-tight mb-2">Complete Your Profile</h2>
+            <p className="text-foreground/60">Just a few details to get started.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-950/50 rounded-lg border border-red-200 dark:border-red-900">{error}</div>}
-            
-            <div className="space-y-1.5">
-              <label htmlFor="displayName" className="block text-sm font-medium text-foreground">Display Name</label>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <div className="p-4 text-sm text-red-700 bg-red-50 rounded-xl font-medium border border-red-200">{error}</div>}
+
+            <div className="space-y-1">
+              <label htmlFor="displayName" className="block text-sm font-bold uppercase tracking-wider">Display Name</label>
               <input
-                id="displayName"
-                name="displayName"
-                type="text"
-                required
-                value={formData.displayName}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-card border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                id="displayName" name="displayName" type="text" required
+                value={formData.displayName} onChange={handleChange}
+                className="w-full px-4 py-3 bg-background border-2 border-foreground/15 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-medium"
                 placeholder="John Doe"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="username" className="block text-sm font-medium text-foreground">Username</label>
+            <div className="space-y-1">
+              <label htmlFor="username" className="block text-sm font-bold uppercase tracking-wider">Username</label>
               <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                value={formData.username}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-card border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                id="username" name="username" type="text" required
+                value={formData.username} onChange={handleChange}
+                className={`w-full px-4 py-3 bg-background border-2 rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all font-medium ${
+                  usernameStatus === 'available' ? 'border-green-400' : usernameStatus === 'taken' ? 'border-red-400' : 'border-foreground/15'
+                }`}
                 placeholder="johndoe123"
               />
+              <div className="h-5">
+                {usernameStatus === 'checking' && <p className="text-xs text-foreground/50">Checking availability...</p>}
+                {usernameStatus === 'available' && <p className="text-xs text-green-600 font-medium">✓ Username is available</p>}
+                {usernameStatus === 'taken' && <p className="text-xs text-red-500 font-medium">✗ Username is taken</p>}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block text-sm font-bold uppercase tracking-wider">Account Privacy & Hostel (Optional)</label>
+              <div className="flex gap-4">
+                {(['public', 'private'] as const).map((type) => (
+                  <label key={type} className="flex-1 cursor-pointer">
+                    <input type="radio" name="accountType" value={type} checked={formData.accountType === type} onChange={handleChange} className="sr-only peer" />
+                    <div className={`text-center py-3 rounded-xl border-2 font-bold text-sm capitalize transition-all ${formData.accountType === type ? 'border-primary bg-primary text-white' : 'border-foreground/15 hover:border-primary/40'}`}>
+                      {type}
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="currentHostelId" className="block text-sm font-medium text-foreground">Hostel ID <span className="text-foreground/40">(Optional)</span></label>
+              <div className="space-y-1">
+                <label htmlFor="currentHostelId" className="block text-sm font-bold uppercase tracking-wider">Hostel Name</label>
                 <input
-                  id="currentHostelId"
-                  name="currentHostelId"
-                  type="text"
-                  value={formData.currentHostelId}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-card border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                  placeholder="Mandakini"
+                  id="currentHostelId" name="currentHostelId" type="text"
+                  value={formData.currentHostelId} onChange={handleChange}
+                  className="w-full px-4 py-3 bg-background border-2 border-foreground/15 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-medium text-sm"
+                  placeholder="Ex: Tapti"
                 />
               </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="currentRoomNo" className="block text-sm font-medium text-foreground">Room <span className="text-foreground/40">(Optional)</span></label>
+              <div className="space-y-1">
+                <label htmlFor="currentRoomNo" className="block text-sm font-bold uppercase tracking-wider">Room</label>
                 <input
-                  id="currentRoomNo"
-                  name="currentRoomNo"
-                  type="number"
-                  value={formData.currentRoomNo}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-card border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                  placeholder="204"
+                  id="currentRoomNo" name="currentRoomNo" type="number"
+                  value={formData.currentRoomNo} onChange={handleChange}
+                  className="w-full px-4 py-3 bg-background border-2 border-foreground/15 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-medium text-sm"
+                  placeholder="123"
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5 pt-2">
-              <label className="block text-sm font-medium text-foreground mb-3">Account Privacy</label>
-              <div className="flex space-x-4">
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="accountType"
-                    value="public"
-                    checked={formData.accountType === 'public'}
-                    onChange={handleChange}
-                    className="w-4 h-4 text-primary bg-background border-border focus:ring-primary focus:ring-2"
-                  />
-                  <span className="text-sm text-foreground">Public</span>
-                </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="accountType"
-                    value="private"
-                    checked={formData.accountType === 'private'}
-                    onChange={handleChange}
-                    className="w-4 h-4 text-primary bg-background border-border focus:ring-primary focus:ring-2"
-                  />
-                  <span className="text-sm text-foreground">Private</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="pt-6">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary focus:ring-offset-background transition-all disabled:opacity-50"
-              >
-                <span>{loading ? 'Saving...' : 'Save & Continue'}</span>
-                {!loading && <ArrowRight size={18} />}
-              </button>
+            <div className="pt-4">
+              <Button type="submit" variant="primary" disabled={loading || usernameStatus === 'taken'} className="w-full py-3.5 font-bold">
+                {loading ? 'Creating...' : 'Complete Setup'}
+              </Button>
             </div>
           </form>
         </div>

@@ -14,9 +14,19 @@ export default {
           DEFAULT: 'var(--primary)',
           foreground: 'var(--primary-foreground)'
         },
-        card: 'var(--card)',
+        card: {
+          DEFAULT: 'var(--card)',
+        },
         border: 'var(--border)'
       },
+      fontFamily: {
+        sans: ['"Space Grotesk"', 'sans-serif'],
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      }
     },
   },
   plugins: [],

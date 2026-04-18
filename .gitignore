@@ -26,3 +26,5 @@ Thumbs.db
 
 # Uploads (local)
 uploads/
+
+.agents/

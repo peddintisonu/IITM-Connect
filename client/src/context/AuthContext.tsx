@@ -1,20 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import axios from 'axios';
-
-// Aligning interface with backend IStudent
-export interface User {
-  _id: string;
-  fullName: string;
-  email: string;
-  displayName?: string;
-  username?: string;
-  profilePhoto?: string;
-  isOnboarded: boolean;
-  accountType: 'public' | 'private';
-}
+import { api } from '../services/api';
+import type { IStudent } from '../types/student.types';
 
 interface AuthContextType {
-  user: User | null;
+  user: IStudent | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   refetchUser: () => Promise<void>;
@@ -32,18 +21,13 @@ export const useAuth = () => {
   return context;
 };
 
-// Setup generic axios instance
-// eslint-disable-next-line react-refresh/only-export-components
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
-  withCredentials: true, // Necessary for httpOnly cookies
-});
+// `api` is successfully imported from services/api.ts
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<IStudent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadUserFromApi = async (): Promise<User | null> => {
+  const loadUserFromApi = async (): Promise<IStudent | null> => {
     try {
       const response = await api.get('/api/v1/students/me');
       if (response.data?.success && response.data?.data) {

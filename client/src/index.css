@@ -3,25 +3,27 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: #ffffff;
-    --foreground: #0f172a;
-    --primary: #4f46e5;
-    --primary-foreground: #ffffff;
-    --card: #f8fafc;
-    --border: #e2e8f0;
-  }
-  .dark {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --primary: #4f46e5;
-    --primary-foreground: #ffffff;
-    --card: #1e293b;
-    --border: #334155;
-  }
-  body, html {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
-    margin: 0;
-    overflow-x: hidden;
-  }
+    :root {
+        --background: #ffffff;
+        --foreground: #191a23;
+        --primary: #1da1f2;
+        --primary-foreground: #000000;
+        --card: #f3f3f3;
+        --border: #191a23;
+        --radius: 0.5rem;
+    }
+    .dark {
+        --background: #191a23;
+        --foreground: #ffffff;
+        --primary: #1da1f2;
+        --primary-foreground: #000000;
+        --card: #292a32;
+        --border: #ffffff;
+    }
+    body,
+    html {
+        @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+        margin: 0;
+        overflow-x: hidden;
+    }
 }

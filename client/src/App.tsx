@@ -1,12 +1,24 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 import LandingPage from './pages/LandingPage';
 import OnboardingPage from './pages/OnboardingPage';
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
+import FollowersPage from './pages/FollowersPage';
 
 // A wrapper to handle redirection away from Landing page if logged in
 const RootRedirector: React.FC = () => {
@@ -40,8 +52,9 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <BrowserRouter>
-      <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
         <Routes>
           <Route path="/" element={<RootRedirector />} />
           
@@ -67,7 +80,35 @@ const App: React.FC = () => {
             path="/profile" 
             element={
               <ProtectedRoute requireOnboarded={true}>
+                <Navigate to="/profile/me" replace />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/profile/:username" 
+            element={
+              <ProtectedRoute requireOnboarded={true}>
                 <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute requireOnboarded={true}>
+                <SettingsPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/followers" 
+            element={
+              <ProtectedRoute requireOnboarded={true}>
+                <FollowersPage />
               </ProtectedRoute>
             } 
           />
@@ -77,6 +118,7 @@ const App: React.FC = () => {
         </Routes>
       </AuthProvider>
     </BrowserRouter>
+  </QueryClientProvider>
   );
 };
 
