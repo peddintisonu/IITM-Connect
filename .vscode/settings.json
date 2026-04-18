@@ -17,5 +17,10 @@
     ],
     "prettier.prettierPath": "./node_modules/prettier",
     "prettier.enableDebugLogs": true,
-    "cSpell.words": ["johndoe", "smail", "Vardhan"]
+    "cSpell.words": [
+        "iitmconnect",
+        "johndoe",
+        "smail",
+        "Vardhan"
+    ]
 }
