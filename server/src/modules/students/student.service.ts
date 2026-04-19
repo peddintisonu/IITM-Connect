@@ -41,6 +41,12 @@ import {
     toUniqueAllowedHiddenFields,
 } from "./utils";
 
+const studentProfilePopulate = [
+    { path: "currentDeptId", select: "name code" },
+    { path: "currentCourseId", select: "name abbreviation" },
+    { path: "currentHostelId", select: "name" },
+];
+
 export const createStudentFromOAuth = async (
     email: string,
     displayName: string,
@@ -74,8 +80,9 @@ export const createStudentFromOAuth = async (
 };
 
 export const getCurrentStudent = async (studentId: string) => {
-    const student =
-        await Student.findById(studentId).select(STUDENT_SELF_SELECT);
+    const student = await Student.findById(studentId)
+        .select(STUDENT_SELF_SELECT)
+        .populate(studentProfilePopulate);
 
     if (!student) {
         throw new ApiError(
@@ -678,9 +685,9 @@ export const getStudentByUsername = async (
     username: string,
     viewerId: string
 ) => {
-    const target = await Student.findOne({ username }).select(
-        STUDENT_PUBLIC_SELECT
-    );
+    const target = await Student.findOne({ username })
+        .select(STUDENT_PUBLIC_SELECT)
+        .populate(studentProfilePopulate);
     if (!target)
         throw new ApiError(
             HTTP_STATUS.NOT_FOUND,
@@ -691,7 +698,9 @@ export const getStudentByUsername = async (
 
     // viewer is the student themselves — return everything
     if (targetId === viewerId) {
-        return await Student.findById(targetId).select(STUDENT_SELF_SELECT);
+        return await Student.findById(targetId)
+            .select(STUDENT_SELF_SELECT)
+            .populate(studentProfilePopulate);
     }
 
     // check blocks in both directions
