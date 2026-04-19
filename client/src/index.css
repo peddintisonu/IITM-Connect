@@ -4,25 +4,27 @@
 
 @layer base {
     :root {
-        --background: #ffffff;
+        --background: #fdfdfd;
         --foreground: #191a23;
-        --primary: #1da1f2;
-        --primary-foreground: #000000;
-        --card: #f3f3f3;
+        --primary: #5a3df4;
+        --primary-foreground: #ffffff;
+        --card: #ffffff;
         --border: #191a23;
         --radius: 0.5rem;
+        --shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1);
     }
     .dark {
-        --background: #191a23;
-        --foreground: #ffffff;
-        --primary: #1da1f2;
-        --primary-foreground: #000000;
-        --card: #292a32;
-        --border: #ffffff;
+        --background: #111116;
+        --foreground: #ececec;
+        --primary: #7c65ff;
+        --primary-foreground: #ffffff;
+        --card: #191a23;
+        --border: #ececec;
+        --shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.4);
     }
     body,
     html {
-        @apply bg-background text-foreground font-sans antialiased transition-colors duration-300;
+        @apply bg-background text-foreground font-sans antialiased transition-colors duration-200;
         margin: 0;
         overflow-x: hidden;
     }

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUpdateProfileMutation, useUpdateProfilePhotoMutation, useUpdateCoverPhotoMutation, useUpdatePrivacyMutation, useUpdateHostelMutation } from '../hooks/useStudent';
 import { useSessionsQuery, useRevokeSessionMutation, useLogoutAllMutation } from '../hooks/useAuthSessions';
 import { useBlockListQuery, useUnblockMutation } from '../hooks/useSocial';
+import { useHostels } from '../hooks/useMasterData';
 import { Button } from '../components/ui/Button';
 import type { ISession } from '../types/session.types';
 
@@ -25,12 +27,42 @@ const SettingsPage: React.FC = () => {
 
   // --- Privacy state ---
   const [accountType, setAccountType] = useState<'public' | 'private'>(user?.accountType || 'public');
+  const [hiddenFields, setHiddenFields] = useState<string[]>(user?.privacySettings?.hiddenFields || []);
   const [privacyMsg, setPrivacyMsg] = useState('');
 
   // --- Hostel state ---
-  const [hostelId, setHostelId] = useState(user?.currentHostelId || '');
+  const { data: hostels, isLoading: hostelsLoading } = useHostels();
+  const initialHostelId = typeof user?.currentHostelId === 'object' ? user.currentHostelId._id : (user?.currentHostelId || '');
+  
+  const [hostelId, setHostelId] = useState(initialHostelId);
   const [roomNo, setRoomNo] = useState(user?.currentRoomNo?.toString() || '');
 
+  // Update locale state if user changes (e.g. after refetch)
+  useEffect(() => {
+    if (user) {
+      setHiddenFields(user.privacySettings?.hiddenFields || []);
+    }
+  }, [user]);
+
+  const toggleVisibility = (field: string) => {
+    setHiddenFields(prev => 
+      prev.includes(field) 
+        ? prev.filter(f => f !== field) 
+        : [...prev, field]
+    );
+  };
+
+  const isHidden = (field: string) => hiddenFields.includes(field);
+
+  const VisibilityToggle = ({ field }: { field: string }) => (
+    <button
+      onClick={() => toggleVisibility(field)}
+      className={`p-1.5 rounded-lg transition-colors ${isHidden(field) ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}
+      title={isHidden(field) ? "Hidden from profile" : "Visible on profile"}
+    >
+      {isHidden(field) ? <EyeOff size={16} /> : <Eye size={16} />}
+    </button>
+  );
   const updateProfileMut = useUpdateProfileMutation();
   const updatePhotoMut = useUpdateProfilePhotoMutation();
   const updateCoverMut = useUpdateCoverPhotoMutation();
@@ -59,9 +91,14 @@ const SettingsPage: React.FC = () => {
         currentRoomNo: parseInt(roomNo) || 0,
       });
 
-      await Promise.all([profilePromise, hostelPromise]);
+      // Update privacy/visibility
+      const privacyPromise = updatePrivacyMut.mutateAsync({
+        hiddenFields: hiddenFields as any,
+      });
+
+      await Promise.all([profilePromise, hostelPromise, privacyPromise]);
       await refetchUser();
-      setProfileMsg('Profile and hostel information updated successfully.');
+      setProfileMsg('Profile settings and visibility updated successfully.');
     } catch (err) {
       const e = err as { response?: { data?: { message?: string } } };
       setProfileMsg(e.response?.data?.message || 'Failed to update settings.');
@@ -202,15 +239,52 @@ const SettingsPage: React.FC = () => {
                 <input value={skills} onChange={(e) => setSkills(e.target.value)} className="w-full px-4 py-3 bg-background border-2 border-foreground/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-medium" placeholder="React, Node.js, Python" />
               </div>
 
+              <div className="grid md:grid-cols-2 gap-6 pb-6 border-b border-border/50">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-bold uppercase tracking-wider">Email Address</label>
+                    <VisibilityToggle field="email" />
+                  </div>
+                  <input 
+                    value={user?.email || ''} 
+                    disabled 
+                    className="w-full px-4 py-3 bg-background border-2 border-foreground/10 rounded-xl font-medium opacity-60 cursor-not-allowed text-sm" 
+                  />
+                  <p className="text-[10px] text-foreground/40 italic">Note: Email is managed via your linked campus account.</p>
+                </div>
+              </div>
+
               <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-border/50">
                 <div className="space-y-1">
-                  <label className="block text-sm font-bold uppercase tracking-wider">Hostel Name</label>
-                  <input value={hostelId} onChange={(e) => setHostelId(e.target.value)} className="w-full px-4 py-3 bg-background border-2 border-foreground/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-medium" placeholder="Ex: Tapti" />
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-bold uppercase tracking-wider">Hostel</label>
+                    <VisibilityToggle field="hostel" />
+                  </div>
+                  <select
+                    value={hostelId}
+                    onChange={(e) => setHostelId(e.target.value)}
+                    className="w-full px-4 py-3 bg-background border-2 border-foreground/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-medium text-sm"
+                    disabled={hostelsLoading}
+                  >
+                    <option value="">Select Hostel</option>
+                    {hostels?.map((h) => (
+                      <option key={h._id} value={h._id}>
+                        {h.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-bold uppercase tracking-wider">Room Number</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-bold uppercase tracking-wider">Room Number</label>
+                    <VisibilityToggle field="roomNo" />
+                  </div>
                   <input type="number" value={roomNo} onChange={(e) => setRoomNo(e.target.value)} className="w-full px-4 py-3 bg-background border-2 border-foreground/20 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-medium" placeholder="123" />
                 </div>
+              </div>
+              
+              <div className="pt-4 border-t border-border/50">
+                <p className="text-xs text-foreground/40 italic">Note: Academic details visibility (Roll No, Batch, etc.) can be toggled via privacy settings.</p>
               </div>
 
               <Button variant="primary" onClick={handleProfileSave} disabled={updateProfileMut.isPending || updateHostelMut.isPending} className="w-full md:w-auto">

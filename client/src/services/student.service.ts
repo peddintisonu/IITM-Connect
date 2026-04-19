@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { IStudent, UpdateProfilePayload, UpdateHostelPayload, UpdatePrivacyPayload, OnboardingPayload } from '../types/student.types';
+import type { IStudent, UpdateProfilePayload, UpdateHostelPayload, UpdatePrivacyPayload, OnboardingPayload, ISearchStudentsResponse } from '../types/student.types';
 
 export const studentService = {
   getMe: async (): Promise<IStudent> => {
@@ -52,6 +52,11 @@ export const studentService = {
 
   updatePrivacy: async (data: UpdatePrivacyPayload): Promise<IStudent> => {
     const res = await api.patch('/api/v1/students/me/privacy', data);
+    return res.data.data;
+  },
+
+  search: async (q: string): Promise<ISearchStudentsResponse> => {
+    const res = await api.get(`/api/v1/students/search?q=${encodeURIComponent(q)}`);
     return res.data.data;
   },
 };

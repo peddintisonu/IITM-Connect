@@ -12,8 +12,27 @@ export interface IRollNoHistory {
   batch: number;
 }
 
+export interface IHostel {
+  _id: string;
+  name: string;
+  code?: string;
+}
+
+export interface IDepartment {
+  _id: string;
+  name: string;
+  code?: string;
+}
+
+export interface ICourse {
+  _id: string;
+  name: string;
+  code?: string;
+  duration?: number;
+}
+
 export interface IHostelHistory {
-  hostelId: string;
+  hostelId: string | IHostel;
   roomNo: number;
 }
 
@@ -36,11 +55,11 @@ export interface IStudent {
   interests: string[];
   skills: string[];
   currentRollNo?: string;
-  currentDeptId?: string;
-  currentCourseId?: string;
+  currentDeptId?: string | IDepartment;
+  currentCourseId?: string | ICourse;
   currentBatch?: number;
   graduationYear?: number;
-  currentHostelId?: string;
+  currentHostelId?: string | IHostel;
   currentRoomNo?: number;
   rollNoHistory: IRollNoHistory[];
   hostelHistory: IHostelHistory[];
@@ -72,7 +91,16 @@ export interface UpdateHostelPayload {
 // Subset for privacy update payload (matches updatePrivacySchema)
 export interface UpdatePrivacyPayload {
   accountType?: 'public' | 'private';
-  hiddenFields?: string[];
+  hiddenFields?: (
+    | 'rollNo'
+    | 'batch'
+    | 'graduationYear'
+    | 'dept'
+    | 'course'
+    | 'hostel'
+    | 'roomNo'
+    | 'email'
+  )[];
 }
 
 // Onboarding payload (matches onboardingSchema)
@@ -82,4 +110,10 @@ export interface OnboardingPayload {
   accountType?: 'public' | 'private';
   currentHostelId?: string;
   currentRoomNo?: number;
+}
+
+export interface ISearchStudentsResponse {
+  items: IStudent[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }

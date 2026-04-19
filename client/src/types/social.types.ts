@@ -43,4 +43,5 @@ export interface IFollowListItem {
   username?: string;
   profilePhoto?: string;
   fullName: string;
+  accountType?: 'public' | 'private';
 }

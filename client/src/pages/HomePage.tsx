@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import ThemeToggle from '../components/ui/ThemeToggle';
 
 const HomePage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -40,6 +41,8 @@ const HomePage: React.FC = () => {
                   </button>
                 ))}
               </div>
+
+              <ThemeToggle />
 
               {/* Avatar dropdown */}
               <div className="relative">

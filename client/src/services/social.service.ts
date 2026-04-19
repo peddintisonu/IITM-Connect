@@ -35,22 +35,34 @@ export const socialService = {
 
   getFollowers: async (): Promise<IFollowListItem[]> => {
     const res = await api.get('/api/v1/social/follow/followers');
-    return res.data.data;
+    return res.data.data.map((item: any) => ({
+      ...item.followerId,
+      relationshipId: item._id
+    }));
   },
 
   getFollowing: async (): Promise<IFollowListItem[]> => {
     const res = await api.get('/api/v1/social/follow/following');
-    return res.data.data;
+    return res.data.data.map((item: any) => ({
+      ...item.followingId,
+      relationshipId: item._id
+    }));
   },
 
   getPendingRequests: async (): Promise<IFollowListItem[]> => {
     const res = await api.get('/api/v1/social/follow/requests');
-    return res.data.data;
+    return res.data.data.map((item: any) => ({
+      ...item.followerId,
+      relationshipId: item._id
+    }));
   },
 
   getSentRequests: async (): Promise<IFollowListItem[]> => {
     const res = await api.get('/api/v1/social/follow/requests/sent');
-    return res.data.data;
+    return res.data.data.map((item: any) => ({
+      ...item.followingId,
+      relationshipId: item._id
+    }));
   },
 
   getRelationship: async (studentId: string): Promise<IRelationship> => {

@@ -67,3 +67,11 @@ export const useUpdatePrivacyMutation = () => {
     },
   });
 };
+
+export const useStudentSearch = (q: string) => {
+  return useQuery({
+    queryKey: ['studentSearch', q],
+    queryFn: () => studentService.search(q),
+    enabled: !!q,
+  });
+};

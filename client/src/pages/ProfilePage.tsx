@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useProfileQuery } from '../hooks/useStudent';
 import { useRelationshipQuery, useFollowMutation, useUnfollowMutation, useCancelFollowMutation, useBlockMutation, useUnblockMutation } from '../hooks/useSocial';
+import { useHostels, useDepartments, useCourses } from '../hooks/useMasterData';
 import { Button } from '../components/ui/Button';
 
 const ProfilePage: React.FC = () => {
@@ -20,6 +21,24 @@ const ProfilePage: React.FC = () => {
   const { data: relationship } = useRelationshipQuery(
     (!isMe && displayProfile?._id) ? displayProfile._id : ''
   );
+
+  // Master Data hooks for resolving IDs to Names
+  const { data: hostels, isLoading: hostelsLoading } = useHostels();
+  const { data: depts, isLoading: deptsLoading } = useDepartments();
+  const { data: courses, isLoading: coursesLoading } = useCourses();
+
+  // Helper to resolve raw IDs to Names if not populated
+  const resolveName = (idOrObj: any, list: any[] | undefined, isLoading: boolean) => {
+    if (!idOrObj) return undefined;
+    if (typeof idOrObj === 'object' && idOrObj.name) return idOrObj.name;
+    if (list && list.length > 0) {
+      const targetId = typeof idOrObj === 'object' ? idOrObj._id?.toString() : idOrObj.toString();
+      const item = list.find(i => i._id.toString() === targetId);
+      if (item) return item.name;
+    }
+    if (isLoading) return 'Loading...';
+    return typeof idOrObj === 'object' ? (idOrObj._id || 'Unknown') : idOrObj;
+  };
 
   const followMut = useFollowMutation();
   const unfollowMut = useUnfollowMutation();
@@ -163,6 +182,10 @@ const ProfilePage: React.FC = () => {
             <InfoRow label="Email" value={isMe ? displayProfile?.email : undefined} fallback="Hidden" />
             <InfoRow label="Roll No" value={displayProfile?.currentRollNo} fallback="Hidden" />
             <InfoRow label="Batch" value={displayProfile?.currentBatch?.toString()} fallback="Not set" />
+            <InfoRow label="Dept" value={resolveName(displayProfile?.currentDeptId, depts, deptsLoading)} fallback="Not set" />
+            <InfoRow label="Course" value={resolveName(displayProfile?.currentCourseId, courses, coursesLoading)} fallback="Not set" />
+            <InfoRow label="Hostel" value={resolveName(displayProfile?.currentHostelId, hostels, hostelsLoading)} fallback="Not set" />
+            <InfoRow label="Room" value={displayProfile?.currentRoomNo?.toString()} fallback="Not set" />
           </div>
 
           {/* Skills & Interests */}

@@ -3,16 +3,18 @@ import { useAuth } from '../context/AuthContext';
 import { studentService } from '../services/student.service';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { useHostels } from '../hooks/useMasterData';
 
 const OnboardingPage: React.FC = () => {
   const { user, refetchUser } = useAuth();
   const navigate = useNavigate();
+  const { data: hostels, isLoading: hostelsLoading } = useHostels();
 
   const [formData, setFormData] = useState({
     displayName: user?.displayName || '',
     username: user?.username || '',
     accountType: (user?.accountType || 'public') as 'public' | 'private',
-    currentHostelId: user?.currentHostelId || '',
+    currentHostelId: typeof user?.currentHostelId === 'object' ? user.currentHostelId._id : (user?.currentHostelId || ''),
     currentRoomNo: user?.currentRoomNo?.toString() || '',
   });
 
@@ -158,12 +160,21 @@ const OnboardingPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label htmlFor="currentHostelId" className="block text-sm font-bold uppercase tracking-wider">Hostel Name</label>
-                <input
-                  id="currentHostelId" name="currentHostelId" type="text"
-                  value={formData.currentHostelId} onChange={handleChange}
+                <select
+                  id="currentHostelId"
+                  name="currentHostelId"
+                  value={formData.currentHostelId}
+                  onChange={handleChange}
                   className="w-full px-4 py-3 bg-background border-2 border-foreground/15 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all font-medium text-sm"
-                  placeholder="Ex: Tapti"
-                />
+                  disabled={hostelsLoading}
+                >
+                  <option value="">Select Hostel</option>
+                  {hostels?.map((hostel: any) => (
+                    <option key={hostel._id} value={hostel._id}>
+                      {hostel.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-1">
                 <label htmlFor="currentRoomNo" className="block text-sm font-bold uppercase tracking-wider">Room</label>
