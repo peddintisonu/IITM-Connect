@@ -118,6 +118,7 @@ const FollowersPage: React.FC = () => {
   const acceptMut = useAcceptFollowMutation();
   const rejectMut = useRejectFollowMutation();
   const cancelMut = useCancelFollowMutation();
+  const followMut = useFollowMutation();
 
   const tabs: { id: SocialTab; label: string; count?: number }[] = [
     { id: 'followers', label: 'Followers', count: followersQuery.data?.length },
@@ -132,15 +133,36 @@ const FollowersPage: React.FC = () => {
       case 'followers': {
         if (followersQuery.isLoading) return <LoadingSpinner />;
         if (!followersQuery.data?.length) return <EmptyState message="No followers yet." />;
+        
+        // Helper to check if we are already following this user
+        const isFollowing = (userId: string) => followingQuery.data?.some(f => f._id === userId);
+
         return followersQuery.data.map((u: IFollowListItem) => (
           <UserCard
             key={u._id}
             user={u}
             onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
             actions={
-              <Button variant="outline" onClick={() => removeFollowerMut.mutate(u._id)} disabled={removeFollowerMut.isPending} className="text-xs">
-                Remove
-              </Button>
+              <>
+                {!isFollowing(u._id) && (
+                  <Button 
+                    variant="primary" 
+                    onClick={() => followMut.mutate(u._id)} 
+                    disabled={followMut.isPending} 
+                    className="text-xs"
+                  >
+                    Follow back
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  onClick={() => removeFollowerMut.mutate(u._id)} 
+                  disabled={removeFollowerMut.isPending} 
+                  className="text-xs"
+                >
+                  Remove
+                </Button>
+              </>
             }
           />
         ));

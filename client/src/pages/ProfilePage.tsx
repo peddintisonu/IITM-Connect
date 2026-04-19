@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { EyeOff, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProfileQuery } from '../hooks/useStudent';
 import { useRelationshipQuery, useFollowMutation, useUnfollowMutation, useCancelFollowMutation, useBlockMutation, useUnblockMutation } from '../hooks/useSocial';
@@ -27,18 +28,69 @@ const ProfilePage: React.FC = () => {
   const { data: depts, isLoading: deptsLoading } = useDepartments();
   const { data: courses, isLoading: coursesLoading } = useCourses();
 
-  // Helper to resolve raw IDs to Names if not populated
-  const resolveName = (idOrObj: any, list: any[] | undefined, isLoading: boolean) => {
-    if (!idOrObj) return undefined;
-    if (typeof idOrObj === 'object' && idOrObj.name) return idOrObj.name;
-    if (list && list.length > 0) {
-      const targetId = typeof idOrObj === 'object' ? idOrObj._id?.toString() : idOrObj.toString();
-      const item = list.find(i => i._id.toString() === targetId);
-      if (item) return item.name;
+  // Pre-build ID→Name lookup maps from master data
+  const deptMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (depts) {
+      for (const d of depts) {
+        map.set(d._id, d.name);
+        if (d.code) map.set(d.code, d.name);
+      }
     }
-    if (isLoading) return 'Loading...';
-    return typeof idOrObj === 'object' ? (idOrObj._id || 'Unknown') : idOrObj;
+    return map;
+  }, [depts]);
+
+  const courseMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (courses) {
+      for (const c of courses) {
+        map.set(c._id, c.name);
+        if (c.code) map.set(c.code, c.name);
+      }
+    }
+    return map;
+  }, [courses]);
+
+  const hostelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (hostels) {
+      for (const h of hostels) {
+        map.set(h._id, h.name);
+        if (h.code) map.set(h.code, h.name);
+      }
+    }
+    return map;
+  }, [hostels]);
+
+  /**
+   * Resolve a field value (raw ID string or populated object) to a human-readable name
+   * using a pre-built lookup map.
+   */
+  const resolveFromMap = (
+    fieldValue: string | { _id: string; name?: string } | undefined,
+    lookupMap: Map<string, string>,
+    loading: boolean
+  ): string | undefined => {
+    if (!fieldValue) return undefined;
+
+    // If the backend already populated the object, use the name directly
+    if (typeof fieldValue === 'object') {
+      if (fieldValue.name) return fieldValue.name;
+      // Object without name — use _id to look up
+      const resolved = lookupMap.get(fieldValue._id);
+      if (resolved) return resolved;
+      if (loading) return 'Loading...';
+      return fieldValue._id;
+    }
+
+    // It's a raw string — look it up in the map
+    const resolved = lookupMap.get(fieldValue);
+    if (resolved) return resolved;
+    if (loading) return 'Loading...';
+    return fieldValue;
   };
+
+  const isHidden = (field: string) => displayProfile?.privacySettings?.hiddenFields?.includes(field);
 
   const followMut = useFollowMutation();
   const unfollowMut = useUnfollowMutation();
@@ -179,13 +231,62 @@ const ProfilePage: React.FC = () => {
           {/* Info */}
           <div className="bg-card rounded-[24px] p-8 border border-border space-y-4">
             <h3 className="text-lg font-bold mb-4">Information</h3>
-            <InfoRow label="Email" value={isMe ? displayProfile?.email : undefined} fallback="Hidden" />
-            <InfoRow label="Roll No" value={displayProfile?.currentRollNo} fallback="Hidden" />
-            <InfoRow label="Batch" value={displayProfile?.currentBatch?.toString()} fallback="Not set" />
-            <InfoRow label="Dept" value={resolveName(displayProfile?.currentDeptId, depts, deptsLoading)} fallback="Not set" />
-            <InfoRow label="Course" value={resolveName(displayProfile?.currentCourseId, courses, coursesLoading)} fallback="Not set" />
-            <InfoRow label="Hostel" value={resolveName(displayProfile?.currentHostelId, hostels, hostelsLoading)} fallback="Not set" />
-            <InfoRow label="Room" value={displayProfile?.currentRoomNo?.toString()} fallback="Not set" />
+            <InfoRow 
+              label="Email" 
+              value={displayProfile?.email} 
+              fallback="Not set" 
+              isHidden={isHidden('email')} 
+              isMe={isMe} 
+            />
+            <InfoRow 
+              label="Roll No" 
+              value={displayProfile?.currentRollNo} 
+              fallback="Not set" 
+              isHidden={isHidden('rollNo')} 
+              isMe={isMe} 
+            />
+            <InfoRow 
+              label="Batch" 
+              value={displayProfile?.currentBatch?.toString()} 
+              fallback="Not set" 
+              isHidden={isHidden('batch')} 
+              isMe={isMe} 
+            />
+            <InfoRow 
+              label="Year" 
+              value={displayProfile?.graduationYear?.toString()} 
+              fallback="Not set" 
+              isHidden={isHidden('graduationYear')} 
+              isMe={isMe} 
+            />
+            <InfoRow 
+              label="Dept" 
+              value={resolveFromMap(displayProfile?.currentDeptId, deptMap, deptsLoading)} 
+              fallback="Not set" 
+              isHidden={isHidden('dept')} 
+              isMe={isMe} 
+            />
+            <InfoRow 
+              label="Course" 
+              value={resolveFromMap(displayProfile?.currentCourseId, courseMap, coursesLoading)} 
+              fallback="Not set" 
+              isHidden={isHidden('course')} 
+              isMe={isMe} 
+            />
+            <InfoRow 
+              label="Hostel" 
+              value={resolveFromMap(displayProfile?.currentHostelId, hostelMap, hostelsLoading)} 
+              fallback="Not set" 
+              isHidden={isHidden('hostel')} 
+              isMe={isMe} 
+            />
+            <InfoRow 
+              label="Room" 
+              value={displayProfile?.currentRoomNo?.toString()} 
+              fallback="Not set" 
+              isHidden={isHidden('roomNo')} 
+              isMe={isMe} 
+            />
           </div>
 
           {/* Skills & Interests */}
@@ -241,14 +342,44 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-const InfoRow: React.FC<{ label: string; value?: string; fallback: string }> = ({ label, value, fallback }) => (
-  <div className="flex items-center gap-3">
-    <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
-    <span className="text-sm">
-      <span className="font-medium">{label}:</span>{' '}
-      <span className={value ? '' : 'text-foreground/40 italic'}>{value || fallback}</span>
-    </span>
-  </div>
-);
+const InfoRow: React.FC<{ 
+  label: string; 
+  value: string | number | undefined; 
+  fallback: string; 
+  isHidden?: boolean; 
+  isMe?: boolean;
+}> = ({ label, value, fallback, isHidden, isMe }) => {
+  // CRITICAL PRIVACY logic: 
+  // If viewing someone else's profile, hide the row entirely if it's marked as hidden 
+  // OR if the value is missing (undefined/null/empty string).
+  if (!isMe) {
+    if (isHidden || value === undefined || value === null || value === '') {
+      return null;
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between group">
+      <div className="flex items-center gap-3">
+        <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+        <span className="text-sm">
+          <span className="font-medium">{label}:</span>{' '}
+          <span className={value ? '' : 'text-foreground/40 italic'}>{value || fallback}</span>
+        </span>
+      </div>
+      
+      {/* Show privacy tag only for self view */}
+      {isMe && (
+        <div className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border ${isHidden ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
+          {isHidden ? (
+            <><EyeOff size={10} /> Hidden</>
+          ) : (
+            <><Eye size={10} /> Visible</>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default ProfilePage;
