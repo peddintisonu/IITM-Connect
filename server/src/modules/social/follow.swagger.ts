@@ -40,6 +40,24 @@
  *         acceptedAt:
  *           type: string
  *           format: date-time
+ *     PaginatedFollowListResponse:
+ *       type: object
+ *       required:
+ *         - items
+ *         - nextCursor
+ *         - hasMore
+ *       properties:
+ *         items:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Follow'
+ *         nextCursor:
+ *           type: string
+ *           nullable: true
+ *           description: Opaque pagination cursor for the next page
+ *         hasMore:
+ *           type: boolean
+ *           description: Whether another page is available
  */
 
 /**
@@ -385,10 +403,26 @@
  * /social/follow/followers:
  *   get:
  *     summary: Get followers
- *     description: Retrieves the list of users following you.
+ *     description: Retrieves followers with cursor pagination.
  *     tags: [Social]
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *         description: Page size
+ *       - in: query
+ *         name: cursor
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Opaque pagination cursor returned by the previous page
  *     responses:
  *       200:
  *         description: Followers retrieved successfully
@@ -400,9 +434,13 @@
  *                 - type: object
  *                   properties:
  *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Follow'
+ *                       $ref: '#/components/schemas/PaginatedFollowListResponse'
+ *       400:
+ *         description: Validation failed or invalid list cursor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
  *         content:
@@ -422,10 +460,26 @@
  * /social/follow/requests/sent:
  *   get:
  *     summary: Get sent pending follow requests
- *     description: Retrieves the list of pending follow requests you have sent.
+ *     description: Retrieves sent pending follow requests with cursor pagination.
  *     tags: [Social]
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *         description: Page size
+ *       - in: query
+ *         name: cursor
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Opaque pagination cursor returned by the previous page
  *     responses:
  *       200:
  *         description: Sent pending requests retrieved successfully
@@ -437,9 +491,13 @@
  *                 - type: object
  *                   properties:
  *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Follow'
+ *                       $ref: '#/components/schemas/PaginatedFollowListResponse'
+ *       400:
+ *         description: Validation failed or invalid list cursor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
  *         content:
@@ -459,10 +517,26 @@
  * /social/follow/following:
  *   get:
  *     summary: Get following
- *     description: Retrieves the list of users or organizations you are following.
+ *     description: Retrieves following list with cursor pagination.
  *     tags: [Social]
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *         description: Page size
+ *       - in: query
+ *         name: cursor
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Opaque pagination cursor returned by the previous page
  *     responses:
  *       200:
  *         description: Following retrieved successfully
@@ -474,9 +548,13 @@
  *                 - type: object
  *                   properties:
  *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Follow'
+ *                       $ref: '#/components/schemas/PaginatedFollowListResponse'
+ *       400:
+ *         description: Validation failed or invalid list cursor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
  *         content:
@@ -496,10 +574,26 @@
  * /social/follow/requests:
  *   get:
  *     summary: Get pending follow requests
- *     description: Retrieves the list of pending follow requests you have received.
+ *     description: Retrieves incoming pending follow requests with cursor pagination.
  *     tags: [Social]
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *         description: Page size
+ *       - in: query
+ *         name: cursor
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Opaque pagination cursor returned by the previous page
  *     responses:
  *       200:
  *         description: Pending requests retrieved successfully
@@ -511,9 +605,13 @@
  *                 - type: object
  *                   properties:
  *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Follow'
+ *                       $ref: '#/components/schemas/PaginatedFollowListResponse'
+ *       400:
+ *         description: Validation failed or invalid list cursor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
  *         content:

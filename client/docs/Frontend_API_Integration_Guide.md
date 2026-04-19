@@ -116,6 +116,10 @@ Do not hardcode assumptions that refresh will remain GET forever.
 - `GET /api/v1/students/search?q=&limit=&cursor=`
 - `GET /api/v1/students/:username`
 
+Student search note:
+
+- Name matching is based on `displayName` token/initial matching and username prefix matching.
+
 ## Social Routes
 
 - `POST /api/v1/social/follow/:followingId`
@@ -124,14 +128,24 @@ Do not hardcode assumptions that refresh will remain GET forever.
 - `POST /api/v1/social/follow/:followerId/accept`
 - `POST /api/v1/social/follow/:followerId/reject`
 - `DELETE /api/v1/social/follow/:followerId/remove`
-- `GET /api/v1/social/follow/followers`
-- `GET /api/v1/social/follow/following`
-- `GET /api/v1/social/follow/requests`
-- `GET /api/v1/social/follow/requests/sent`
+- `GET /api/v1/social/follow/followers?limit=&cursor=`
+- `GET /api/v1/social/follow/following?limit=&cursor=`
+- `GET /api/v1/social/follow/requests?limit=&cursor=`
+- `GET /api/v1/social/follow/requests/sent?limit=&cursor=`
 - `POST /api/v1/social/block/:blockedId`
 - `DELETE /api/v1/social/block/:blockedId`
-- `GET /api/v1/social/block`
+- `GET /api/v1/social/block?limit=&cursor=`
 - `GET /api/v1/social/relationship/:studentId`
+
+Social list pagination response shape:
+
+```json
+{
+    "items": [],
+    "nextCursor": "opaque-cursor-or-null",
+    "hasMore": true
+}
+```
 
 ## Master Data Routes
 
@@ -245,6 +259,8 @@ Step order:
 3. Reject: `POST /api/v1/social/follow/:followerId/reject`
 4. Outgoing queue: `GET /api/v1/social/follow/requests/sent`
 5. Cancel sent request: `DELETE /api/v1/social/follow/:followingId/request`
+
+For all list calls above, include `limit` and optional `cursor`, then continue pagination using returned `nextCursor` while `hasMore` is true.
 
 ---
 

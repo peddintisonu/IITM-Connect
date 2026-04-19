@@ -22,3 +22,9 @@ export const FOLLOW_STATUS_ENUM = [
 ] as const;
 
 export const FOLLOW_TYPE_ENUM = [FOLLOW_TYPE.STUDENT, FOLLOW_TYPE.ORG] as const;
+
+export const SOCIAL_LIST_LIMITS = {
+    min: 1,
+    max: 50,
+    default: 20,
+} as const;

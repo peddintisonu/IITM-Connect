@@ -25,5 +25,6 @@ const blockSchema = new Schema<IBlock>(
 );
 
 blockSchema.index({ blockerId: 1, blockedId: 1 }, { unique: true });
+blockSchema.index({ blockerId: 1, createdAt: -1, _id: -1 });
 
 export const Block = mongoose.model<IBlock>("Block", blockSchema);

@@ -23,6 +23,24 @@
  *         updatedAt:
  *           type: string
  *           format: date-time
+ *     PaginatedBlockListResponse:
+ *       type: object
+ *       required:
+ *         - items
+ *         - nextCursor
+ *         - hasMore
+ *       properties:
+ *         items:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Block'
+ *         nextCursor:
+ *           type: string
+ *           nullable: true
+ *           description: Opaque pagination cursor for the next page
+ *         hasMore:
+ *           type: boolean
+ *           description: Whether another page is available
  */
 
 /**
@@ -128,10 +146,26 @@
  * /social/block:
  *   get:
  *     summary: Get block list
- *     description: Retrieves the list of all students you have blocked.
+ *     description: Retrieves blocked users with cursor pagination.
  *     tags: [Social]
  *     security:
  *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *         description: Page size
+ *       - in: query
+ *         name: cursor
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Opaque pagination cursor returned by the previous page
  *     responses:
  *       200:
  *         description: Block list retrieved successfully
@@ -143,9 +177,13 @@
  *                 - type: object
  *                   properties:
  *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Block'
+ *                       $ref: '#/components/schemas/PaginatedBlockListResponse'
+ *       400:
+ *         description: Validation failed or invalid list cursor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized - access token missing or invalid
  *         content:

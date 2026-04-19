@@ -3,13 +3,19 @@
 import mongoose from "mongoose";
 import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError, ensureStudentExists } from "../../shared/utils";
+import { SocialListPaginationInput } from "../../validations/social.validation";
 import { STUDENT_STATUS } from "../students/student.constants";
 import Student from "../students/student.model";
 import { Block } from "./block.model";
 import { Follow } from "./follow.model";
-import { isBlockedBetween } from "./relationships.utils";
 import { FOLLOW_STATUS, FOLLOW_TYPE } from "./social.constants";
 import { socialErrorMessages } from "./socialMessages";
+import {
+    encodeSocialListCursor,
+    isBlockedBetween,
+    PaginatedListResult,
+    parseSocialListCursor,
+} from "./utils";
 
 export const sendFollowRequest = async (
     followerId: mongoose.Types.ObjectId,
@@ -171,48 +177,117 @@ export const removeFollower = async (
     return follow;
 };
 
-// TODO: add cursor pagination (limit, cursor) for followers list and return { items, nextCursor, hasMore }
-export const getFollowers = async (studentId: mongoose.Types.ObjectId) => {
-    const followers = await Follow.find({
-        followingId: studentId,
-        status: FOLLOW_STATUS.ACCEPTED,
-    }).populate("followerId", "fullName displayName profilePhoto username");
+const paginateFollows = async (
+    baseFilter: Record<string, unknown>,
+    populatePath: "followerId" | "followingId",
+    data: SocialListPaginationInput
+): Promise<PaginatedListResult<unknown>> => {
+    const cursorData = data.cursor
+        ? (() => {
+              try {
+                  return parseSocialListCursor(data.cursor!);
+              } catch {
+                  throw new ApiError(
+                      HTTP_STATUS.BAD_REQUEST,
+                      socialErrorMessages.invalidListCursor
+                  );
+              }
+          })()
+        : null;
 
-    return followers;
+    const cursorFilter = cursorData
+        ? {
+              $or: [
+                  { createdAt: { $lt: cursorData.createdAt } },
+                  {
+                      createdAt: cursorData.createdAt,
+                      _id: { $lt: cursorData.id },
+                  },
+              ],
+          }
+        : {};
+
+    const rows = await Follow.find({
+        ...baseFilter,
+        ...cursorFilter,
+    })
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(data.limit + 1)
+        .populate(populatePath, "fullName displayName profilePhoto username");
+
+    const hasMore = rows.length > data.limit;
+    const items = rows.slice(0, data.limit);
+    const lastItem = items[items.length - 1];
+
+    const nextCursor =
+        hasMore && lastItem
+            ? encodeSocialListCursor({
+                  createdAt: lastItem.createdAt.toISOString(),
+                  id: lastItem._id.toString(),
+              })
+            : null;
+
+    return {
+        items,
+        nextCursor,
+        hasMore,
+    };
 };
 
-// TODO: add cursor pagination (limit, cursor) for following list and return { items, nextCursor, hasMore }
-export const getFollowing = async (studentId: mongoose.Types.ObjectId) => {
-    const following = await Follow.find({
-        followerId: studentId,
-        status: FOLLOW_STATUS.ACCEPTED,
-    }).populate("followingId", "fullName displayName profilePhoto username");
-
-    return following;
+export const getFollowers = async (
+    studentId: mongoose.Types.ObjectId,
+    data: SocialListPaginationInput
+) => {
+    return paginateFollows(
+        {
+            followingId: studentId,
+            status: FOLLOW_STATUS.ACCEPTED,
+        },
+        "followerId",
+        data
+    );
 };
 
-// TODO: add cursor pagination (limit, cursor) for incoming follow requests and return { items, nextCursor, hasMore }
+export const getFollowing = async (
+    studentId: mongoose.Types.ObjectId,
+    data: SocialListPaginationInput
+) => {
+    return paginateFollows(
+        {
+            followerId: studentId,
+            status: FOLLOW_STATUS.ACCEPTED,
+        },
+        "followingId",
+        data
+    );
+};
+
 export const getPendingRequests = async (
-    studentId: mongoose.Types.ObjectId
+    studentId: mongoose.Types.ObjectId,
+    data: SocialListPaginationInput
 ) => {
-    const requests = await Follow.find({
-        followingId: studentId,
-        status: FOLLOW_STATUS.PENDING,
-    }).populate("followerId", "fullName displayName profilePhoto username");
-
-    return requests;
+    return paginateFollows(
+        {
+            followingId: studentId,
+            status: FOLLOW_STATUS.PENDING,
+        },
+        "followerId",
+        data
+    );
 };
 
-// TODO: add cursor pagination (limit, cursor) for sent follow requests and return { items, nextCursor, hasMore }
 export const getSentPendingRequests = async (
-    studentId: mongoose.Types.ObjectId
+    studentId: mongoose.Types.ObjectId,
+    data: SocialListPaginationInput
 ) => {
-    const requests = await Follow.find({
-        followerId: studentId,
-        status: FOLLOW_STATUS.PENDING,
-    }).populate("followingId", "fullName displayName profilePhoto username");
-
-    return requests;
+    return paginateFollows(
+        {
+            followerId: studentId,
+            status: FOLLOW_STATUS.PENDING,
+        },
+        "followingId",
+        data
+    );
 };
 
 export const getRelationshipState = async (

@@ -262,6 +262,7 @@ Write: 4. `PATCH /api/v1/students/me/profile` 5. `PATCH /api/v1/students/me/host
 ## Scope Now
 
 Follow lifecycle and block lifecycle routes are implemented.
+All social list endpoints now return cursor-paginated responses.
 
 ## Required Pages
 
@@ -292,13 +293,13 @@ Follow lifecycle and block lifecycle routes are implemented.
 4. `POST /api/v1/social/follow/:followerId/accept`
 5. `POST /api/v1/social/follow/:followerId/reject`
 6. `DELETE /api/v1/social/follow/:followerId/remove`
-7. `GET /api/v1/social/follow/followers`
-8. `GET /api/v1/social/follow/following`
-9. `GET /api/v1/social/follow/requests`
-10. `GET /api/v1/social/follow/requests/sent`
+7. `GET /api/v1/social/follow/followers?limit=&cursor=`
+8. `GET /api/v1/social/follow/following?limit=&cursor=`
+9. `GET /api/v1/social/follow/requests?limit=&cursor=`
+10. `GET /api/v1/social/follow/requests/sent?limit=&cursor=`
 11. `POST /api/v1/social/block/:blockedId`
 12. `DELETE /api/v1/social/block/:blockedId`
-13. `GET /api/v1/social/block`
+13. `GET /api/v1/social/block?limit=&cursor=`
 14. `GET /api/v1/social/relationship/:studentId`
 
 ## UX Requirements
@@ -308,12 +309,14 @@ Follow lifecycle and block lifecycle routes are implemented.
 3. Per-row action pending states
 4. Relationship state freshness after action (invalidate/refetch)
 5. Blocked state must visibly prevent follow action paths
+6. Support load-more/infinite-scroll behavior using `nextCursor` and `hasMore`
 
 ## Backend Suggestions For UI
 
 1. Always re-fetch relationship state after follow/block mutation.
 2. Treat block as stronger relationship state than follow.
 3. Use backend result as truth for action label transitions.
+4. For list endpoints, consume response as `{ items, nextCursor, hasMore }` instead of raw arrays.
 
 ## Acceptance Checklist
 

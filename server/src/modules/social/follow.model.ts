@@ -42,5 +42,7 @@ const followSchema = new Schema<IFollow>(
 
 followSchema.index({ followerId: 1, followingId: 1 }, { unique: true });
 followSchema.index({ followingId: 1, status: 1 });
+followSchema.index({ followingId: 1, status: 1, createdAt: -1, _id: -1 });
+followSchema.index({ followerId: 1, status: 1, createdAt: -1, _id: -1 });
 
 export const Follow = mongoose.model<IFollow>("Follow", followSchema);
