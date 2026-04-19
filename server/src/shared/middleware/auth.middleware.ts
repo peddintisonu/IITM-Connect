@@ -5,11 +5,12 @@ import { authErrorMessages } from "../../modules/auth/auth.messages";
 import Session from "../../modules/auth/session.model";
 import {
     decodeAccessToken,
+    ensureAuthStudentExists,
     ensureSessionExists,
-    ensureStudentExistsForAuth,
     validateActiveSession,
     validateAuthTokenVersion,
 } from "../../modules/auth/utils/index";
+import { STUDENT_REQUEST_SELECT } from "../../modules/students/student.constants";
 import Student, { StudentRole } from "../../modules/students/student.model";
 import { HTTP_STATUS } from "../constants/http-status.constants";
 import { ApiError, asyncHandler } from "../utils";
@@ -26,11 +27,11 @@ export const protectRoute = asyncHandler(async (req, res, next) => {
     const decoded = decodeAccessToken(accessToken);
 
     const [student, session] = await Promise.all([
-        Student.findById(decoded.studentId).select("-__v"),
+        Student.findById(decoded.studentId).select(STUDENT_REQUEST_SELECT),
         Session.findById(decoded.sessionId),
     ]);
 
-    const authStudent = ensureStudentExistsForAuth(student);
+    const authStudent = ensureAuthStudentExists(student);
     const authSession = ensureSessionExists(
         session,
         authErrorMessages.sessionExpired
@@ -103,11 +104,11 @@ export const redirectIfAuthenticated = asyncHandler(async (req, res, next) => {
         const decoded = decodeAccessToken(accessToken);
 
         const [student, session] = await Promise.all([
-            Student.findById(decoded.studentId),
+            Student.findById(decoded.studentId).select(STUDENT_REQUEST_SELECT),
             Session.findById(decoded.sessionId),
         ]);
 
-        const authStudent = ensureStudentExistsForAuth(student);
+        const authStudent = ensureAuthStudentExists(student);
         const authSession = ensureSessionExists(session);
         await validateActiveSession(authSession, {
             checkRevoked: true,

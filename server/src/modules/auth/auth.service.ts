@@ -15,8 +15,8 @@ import Session from "./session.model";
 import {
     decodeRefreshToken,
     endSession,
+    ensureAuthStudentExists,
     ensureSessionExists,
-    ensureStudentExistsForAuth,
     type SessionContext,
     validateActiveSession,
     validateAuthTokenVersion,
@@ -135,7 +135,7 @@ export const refreshAccessToken = async (
         );
     }
 
-    const student = ensureStudentExistsForAuth(
+    const student = ensureAuthStudentExists(
         await Student.findById(decoded.studentId)
     );
 

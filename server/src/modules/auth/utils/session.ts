@@ -27,7 +27,7 @@ export const ensureSessionExists = <T>(
     return session as NonNullable<T>;
 };
 
-export const ensureStudentExistsForAuth = (
+export const ensureAuthStudentExists = (
     student: IStudent | null | undefined,
     statusCode = HTTP_STATUS.UNAUTHORIZED
 ): IStudent => {
