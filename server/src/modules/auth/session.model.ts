@@ -62,7 +62,7 @@ const sessionSchema = new mongoose.Schema<ISession>(
     }
 );
 
-// TODO: Add indexes for efficient querying and automatic cleanup of expired sessions, add logic for diff revokation types (logout, expired, revoked)
+// TODO: Add indexes for efficient querying and automatic cleanup of expired sessions, add logic for diff revocation types (logout, expired, revoked)
 sessionSchema.index({ deletesAt: 1 }, { expireAfterSeconds: 0, sparse: true });
 sessionSchema.index({ userId: 1 });
 

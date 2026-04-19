@@ -11,8 +11,8 @@ export { clearAuthCookies, setAuthCookies } from "./cookie";
 export {
     buildDeleteAt,
     endSession,
+    ensureAuthStudentExists,
     ensureSessionExists,
-    ensureStudentExistsForAuth,
     validateActiveSession,
     validateAuthTokenVersion,
 } from "./session";
