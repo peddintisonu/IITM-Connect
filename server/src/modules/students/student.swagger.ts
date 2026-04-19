@@ -88,9 +88,33 @@
  *           type: string
  *           example: "cs24b001"
  *         currentDeptId:
- *           type: string
+ *           type: object
+ *           nullable: true
+ *           description: Populated department reference
+ *           properties:
+ *             _id:
+ *               type: string
+ *               example: "65f1234567890abcdef12345"
+ *             name:
+ *               type: string
+ *               example: "Computer Science and Engineering"
+ *             code:
+ *               type: string
+ *               example: "CSE"
  *         currentCourseId:
- *           type: string
+ *           type: object
+ *           nullable: true
+ *           description: Populated course reference
+ *           properties:
+ *             _id:
+ *               type: string
+ *               example: "65f1234567890abcdef12345"
+ *             name:
+ *               type: string
+ *               example: "B.Tech"
+ *             abbreviation:
+ *               type: string
+ *               example: "BTech"
  *         currentBatch:
  *           type: number
  *           example: 2024
@@ -98,7 +122,16 @@
  *           type: number
  *           example: 2028
  *         currentHostelId:
- *           type: string
+ *           type: object
+ *           nullable: true
+ *           description: Populated hostel reference
+ *           properties:
+ *             _id:
+ *               type: string
+ *               example: "65f1234567890abcdef12345"
+ *             name:
+ *               type: string
+ *               example: "Tapti"
  *         currentRoomNo:
  *           type: number
  *         rollNoHistory:
@@ -166,14 +199,6 @@
  *           enum: [public, private]
  *           example: "public"
  *           description: "Optional, defaults to public"
- *         currentHostelId:
- *           type: string
- *           description: "Required if currentRoomNo is provided"
- *           example: "65f1234567890abcdef12345"
- *         currentRoomNo:
- *           type: number
- *           description: "Required if currentHostelId is provided"
- *           example: 302
  */
 
 /**
@@ -339,7 +364,7 @@
  * /students/me:
  *   get:
  *     summary: Get current student profile
- *     description: Retrieves the authenticated student's own profile information with reference IDs (currentDeptId/currentCourseId/currentHostelId).
+ *     description: Retrieves the authenticated student's own profile information with populated department/course/hostel references.
  *     tags: [Student]
  *     security:
  *       - cookieAuth: []
