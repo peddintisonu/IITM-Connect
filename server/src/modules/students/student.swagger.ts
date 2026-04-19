@@ -368,7 +368,7 @@
  * /students/search:
  *   get:
  *     summary: Search students
- *     description: Searches active onboarded students by display name tokens, initials, and username prefix. Supports cursor pagination.
+ *     description: Searches active onboarded students by display-name tokens/initials and username prefix. Name matching uses displayName only. Supports cursor pagination.
  *     tags: [Student]
  *     security:
  *       - cookieAuth: []

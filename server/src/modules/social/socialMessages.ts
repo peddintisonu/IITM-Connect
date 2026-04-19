@@ -11,6 +11,7 @@ export const socialErrorMessages = {
     followerNotFound: "Follower not found",
     blockNotFound: "Block not found",
     alreadyBlockedStudent: "You have already blocked this student",
+    invalidListCursor: "Invalid list cursor",
 } as const;
 
 export const socialRouteMessages = {

@@ -6,7 +6,12 @@ import {
     ApiResponse,
     asyncHandler,
     toObjectId,
+    validateAndParse,
 } from "../../shared/utils";
+import {
+    SocialListPaginationInput,
+    socialListPaginationSchema,
+} from "../../validations/social.validation";
 import {
     acceptFollowRequest,
     cancelSentFollowRequest,
@@ -121,7 +126,11 @@ export const removeFollowerController = asyncHandler(async (req, res) => {
 });
 
 export const getFollowersController = asyncHandler(async (req, res) => {
-    const followers = await getFollowers(req.user!._id);
+    const data: SocialListPaginationInput = validateAndParse(
+        socialListPaginationSchema,
+        req.query
+    );
+    const followers = await getFollowers(req.user!._id, data);
     res.json(
         new ApiResponse(
             HTTP_STATUS.OK,
@@ -132,7 +141,11 @@ export const getFollowersController = asyncHandler(async (req, res) => {
 });
 
 export const getFollowingController = asyncHandler(async (req, res) => {
-    const following = await getFollowing(req.user!._id);
+    const data: SocialListPaginationInput = validateAndParse(
+        socialListPaginationSchema,
+        req.query
+    );
+    const following = await getFollowing(req.user!._id, data);
     res.json(
         new ApiResponse(
             HTTP_STATUS.OK,
@@ -143,7 +156,11 @@ export const getFollowingController = asyncHandler(async (req, res) => {
 });
 
 export const getPendingRequestsController = asyncHandler(async (req, res) => {
-    const requests = await getPendingRequests(req.user!._id);
+    const data: SocialListPaginationInput = validateAndParse(
+        socialListPaginationSchema,
+        req.query
+    );
+    const requests = await getPendingRequests(req.user!._id, data);
     res.json(
         new ApiResponse(
             HTTP_STATUS.OK,
@@ -155,7 +172,11 @@ export const getPendingRequestsController = asyncHandler(async (req, res) => {
 
 export const getSentPendingRequestsController = asyncHandler(
     async (req, res) => {
-        const requests = await getSentPendingRequests(req.user!._id);
+        const data: SocialListPaginationInput = validateAndParse(
+            socialListPaginationSchema,
+            req.query
+        );
+        const requests = await getSentPendingRequests(req.user!._id, data);
         res.json(
             new ApiResponse(
                 HTTP_STATUS.OK,

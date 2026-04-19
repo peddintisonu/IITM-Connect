@@ -1,6 +1,6 @@
 # File Tree: IITM Connect
 
-**Generated:** 4/19/2026, 3:46:24 AM
+**Generated:** 4/19/2026, 7:34:55 PM
 **Root Path:** `d:\Projects\Web-Projects\IITM Connect`
 
 ```
@@ -18,7 +18,8 @@
 │   │   │   └── 🖼️ vite.svg
 │   │   ├── 📁 components
 │   │   │   ├── 📁 ui
-│   │   │   │   └── 📄 Button.tsx
+│   │   │   │   ├── 📄 Button.tsx
+│   │   │   │   └── 📄 ThemeToggle.tsx
 │   │   │   ├── 📄 Navigation.tsx
 │   │   │   └── 📄 ProtectedRoute.tsx
 │   │   ├── 📁 config
@@ -27,8 +28,10 @@
 │   │   │   └── 📄 AuthContext.tsx
 │   │   ├── 📁 hooks
 │   │   │   ├── 📄 useAuthSessions.ts
+│   │   │   ├── 📄 useMasterData.ts
 │   │   │   ├── 📄 useSocial.ts
-│   │   │   └── 📄 useStudent.ts
+│   │   │   ├── 📄 useStudent.ts
+│   │   │   └── 📄 useTheme.ts
 │   │   ├── 📁 lib
 │   │   │   └── 📄 utils.ts
 │   │   ├── 📁 pages
@@ -41,6 +44,7 @@
 │   │   ├── 📁 services
 │   │   │   ├── 📄 api.ts
 │   │   │   ├── 📄 auth.service.ts
+│   │   │   ├── 📄 masterData.service.ts
 │   │   │   ├── 📄 social.service.ts
 │   │   │   └── 📄 student.service.ts
 │   │   ├── 📁 types
@@ -106,6 +110,10 @@
 │   │   │   │   ├── 📄 masterData.service.ts
 │   │   │   │   └── 📄 masterData.swagger.ts
 │   │   │   ├── 📁 social
+│   │   │   │   ├── 📁 utils
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   ├── 📄 pagination.utils.ts
+│   │   │   │   │   └── 📄 relationships.utils.ts
 │   │   │   │   ├── 📄 block.controller.ts
 │   │   │   │   ├── 📄 block.model.ts
 │   │   │   │   ├── 📄 block.service.ts
@@ -114,7 +122,6 @@
 │   │   │   │   ├── 📄 follow.model.ts
 │   │   │   │   ├── 📄 follow.service.ts
 │   │   │   │   ├── 📄 follow.swagger.ts
-│   │   │   │   ├── 📄 relationships.utils.ts
 │   │   │   │   ├── 📄 social.constants.ts
 │   │   │   │   ├── 📄 social.messages.ts
 │   │   │   │   ├── 📄 social.routes.ts
@@ -170,6 +177,7 @@
 │   │   │   └── 📄 express.d.ts
 │   │   ├── 📁 validations
 │   │   │   ├── 📄 masterData.validation.ts
+│   │   │   ├── 📄 social.validation.ts
 │   │   │   └── 📄 student.validation.ts
 │   │   ├── 📄 app.ts
 │   │   └── 📄 server.ts

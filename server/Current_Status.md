@@ -85,6 +85,7 @@
 - Privacy-aware public profile fetch by username implemented.
 - Student cards endpoint implemented for batch profile-card retrieval.
 - Student search endpoint implemented with cursor support.
+- Student name search now uses `displayName` token/initial matching (with username prefix matching).
 
 ### Current Student Routes
 
@@ -123,8 +124,10 @@
     - unfollow
     - remove follower
 - Follower/following/pending/sent-pending list endpoints implemented.
+- Cursor pagination implemented for followers/following/pending/sent-pending lists.
 - Relationship lookup endpoint implemented.
 - Block/unblock/list block endpoints implemented.
+- Cursor pagination implemented for block list endpoint.
 - Block operation removes follow edges as expected.
 
 ### Current Social Routes
@@ -140,10 +143,10 @@
 | POST   | `/api/v1/social/follow/:followerId/accept`   | Accepts a pending follow request received by current user.                                     | Authenticated + onboarded users. | Only request receiver should approve access to their private profile graph.                              | implemented |
 | POST   | `/api/v1/social/follow/:followerId/reject`   | Rejects a pending follow request received by current user.                                     | Authenticated + onboarded users. | Same privacy/ownership rule as accept; decision is profile owner's control.                              | implemented |
 | DELETE | `/api/v1/social/follow/:followerId/remove`   | Removes an existing follower from current user's follower set.                                 | Authenticated + onboarded users. | Follower management is ownership-sensitive social control.                                               | implemented |
-| GET    | `/api/v1/social/follow/followers`            | Returns list of followers for current user with social visibility constraints.                 | Authenticated + onboarded users. | Social graph lists are protected account relationship data.                                              | implemented |
-| GET    | `/api/v1/social/follow/following`            | Returns list of accounts current user follows.                                                 | Authenticated + onboarded users. | Prevents anonymous graph scraping and keeps graph tied to verified account identity.                     | implemented |
-| GET    | `/api/v1/social/follow/requests`             | Returns incoming pending follow requests for private-account handling UI.                      | Authenticated + onboarded users. | Pending requests are private moderation queue for account owner only.                                    | implemented |
-| GET    | `/api/v1/social/follow/requests/sent`        | Returns outgoing follow requests currently pending approval.                                   | Authenticated + onboarded users. | Outgoing pending state is user-specific and should not be publicly exposed.                              | implemented |
+| GET    | `/api/v1/social/follow/followers`            | Returns paginated followers list (`limit`, `cursor`) with `items`, `nextCursor`, `hasMore`.    | Authenticated + onboarded users. | Social graph lists are protected account relationship data.                                              | implemented |
+| GET    | `/api/v1/social/follow/following`            | Returns paginated following list (`limit`, `cursor`) with `items`, `nextCursor`, `hasMore`.    | Authenticated + onboarded users. | Prevents anonymous graph scraping and keeps graph tied to verified account identity.                     | implemented |
+| GET    | `/api/v1/social/follow/requests`             | Returns paginated incoming pending requests with cursor-based traversal metadata.              | Authenticated + onboarded users. | Pending requests are private moderation queue for account owner only.                                    | implemented |
+| GET    | `/api/v1/social/follow/requests/sent`        | Returns paginated sent pending requests with cursor-based traversal metadata.                  | Authenticated + onboarded users. | Outgoing pending state is user-specific and should not be publicly exposed.                              | implemented |
 | GET    | `/api/v1/social/relationship/:studentId`     | Returns relationship state between current user and target (follow, pending, blocked context). | Authenticated + onboarded users. | Required for UI state decisions and must be constrained to authenticated social interactions.            | implemented |
 
 ---
@@ -274,7 +277,6 @@
 
 ## 5.4 Social Next Up
 
-- Add pagination/cursor normalization for all list endpoints.
 - Add suggestions endpoint.
 - Add mutual connections endpoint.
 - Add tests for block-follow consistency rules.

@@ -51,5 +51,3 @@ router.get("/follow/requests/sent", getSentPendingRequestsController);
 router.get("/relationship/:studentId", getRelationshipController);
 
 export default router;
-
-// TODO: add limit and pagination to followers/following endpoints, and also add endpoint to get mutual followers between two users

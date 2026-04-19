@@ -14,11 +14,13 @@
 import mongoose from "mongoose";
 import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
 import { ApiError } from "../../shared/utils";
+import { SocialListPaginationInput } from "../../validations/social.validation";
 import { STUDENT_STATUS } from "../students/student.constants";
 import Student from "../students/student.model";
 import { Block } from "./block.model";
 import { Follow } from "./follow.model";
 import { socialErrorMessages } from "./socialMessages";
+import { encodeSocialListCursor, parseSocialListCursor } from "./utils";
 
 export const blockStudent = async (
     blockerId: mongoose.Types.ObjectId,
@@ -92,11 +94,55 @@ export const unblockStudent = async (
     return block;
 };
 
-// TODO: add cursor pagination (limit, cursor) for blocked users list and return { items, nextCursor, hasMore }
-export const getBlockList = async (blockerId: mongoose.Types.ObjectId) => {
-    const blocks = await Block.find({ blockerId }).populate(
-        "blockedId",
-        "fullName profilePhoto username"
-    );
-    return blocks;
+export const getBlockList = async (
+    blockerId: mongoose.Types.ObjectId,
+    data: SocialListPaginationInput
+) => {
+    const cursorData = data.cursor
+        ? (() => {
+              try {
+                  return parseSocialListCursor(data.cursor!);
+              } catch {
+                  throw new ApiError(
+                      HTTP_STATUS.BAD_REQUEST,
+                      socialErrorMessages.invalidListCursor
+                  );
+              }
+          })()
+        : null;
+
+    const cursorFilter = cursorData
+        ? {
+              $or: [
+                  { createdAt: { $lt: cursorData.createdAt } },
+                  {
+                      createdAt: cursorData.createdAt,
+                      _id: { $lt: cursorData.id },
+                  },
+              ],
+          }
+        : {};
+
+    const rows = await Block.find({ blockerId, ...cursorFilter })
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(data.limit + 1)
+        .populate("blockedId", "fullName profilePhoto username");
+
+    const hasMore = rows.length > data.limit;
+    const items = rows.slice(0, data.limit);
+    const lastItem = items[items.length - 1];
+
+    const nextCursor =
+        hasMore && lastItem
+            ? encodeSocialListCursor({
+                  createdAt: lastItem.createdAt.toISOString(),
+                  id: lastItem._id.toString(),
+              })
+            : null;
+
+    return {
+        items,
+        nextCursor,
+        hasMore,
+    };
 };

@@ -19,7 +19,7 @@ import { Course } from "../core/models/course.model";
 import { Department } from "../core/models/department.model";
 import { Block } from "../social/block.model";
 import { Follow } from "../social/follow.model";
-import { isBlockedBetween } from "../social/relationships.utils";
+import { isBlockedBetween } from "../social/utils";
 import {
     HIDDEN_FIELD_TO_STUDENT_FIELD_MAP,
     STUDENT_PUBLIC_SELECT,
@@ -331,9 +331,7 @@ export const searchStudents = async (
     const searchName = {
         $toLower: {
             $trim: {
-                input: {
-                    $ifNull: ["$displayName", "$fullName"],
-                },
+                input: { $ifNull: ["$displayName", ""] },
             },
         },
     };
