@@ -1,10 +1,9 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { EyeOff, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProfileQuery } from '../hooks/useStudent';
 import { useRelationshipQuery, useFollowMutation, useUnfollowMutation, useCancelFollowMutation, useBlockMutation, useUnblockMutation } from '../hooks/useSocial';
-import { useHostels, useDepartments, useCourses } from '../hooks/useMasterData';
 import { Button } from '../components/ui/Button';
 
 const ProfilePage: React.FC = () => {
@@ -23,74 +22,17 @@ const ProfilePage: React.FC = () => {
     (!isMe && displayProfile?._id) ? displayProfile._id : ''
   );
 
-  // Master Data hooks for resolving IDs to Names
-  const { data: hostels, isLoading: hostelsLoading } = useHostels();
-  const { data: depts, isLoading: deptsLoading } = useDepartments();
-  const { data: courses, isLoading: coursesLoading } = useCourses();
-
-  // Pre-build ID→Name lookup maps from master data
-  const deptMap = useMemo(() => {
-    const map = new Map<string, string>();
-    if (depts) {
-      for (const d of depts) {
-        map.set(d._id, d.name);
-        if (d.code) map.set(d.code, d.name);
-      }
-    }
-    return map;
-  }, [depts]);
-
-  const courseMap = useMemo(() => {
-    const map = new Map<string, string>();
-    if (courses) {
-      for (const c of courses) {
-        map.set(c._id, c.name);
-        if (c.code) map.set(c.code, c.name);
-      }
-    }
-    return map;
-  }, [courses]);
-
-  const hostelMap = useMemo(() => {
-    const map = new Map<string, string>();
-    if (hostels) {
-      for (const h of hostels) {
-        map.set(h._id, h.name);
-        if (h.code) map.set(h.code, h.name);
-      }
-    }
-    return map;
-  }, [hostels]);
-
-  /**
-   * Resolve a field value (raw ID string or populated object) to a human-readable name
-   * using a pre-built lookup map.
-   */
-  const resolveFromMap = (
-    fieldValue: string | { _id: string; name?: string } | undefined,
-    lookupMap: Map<string, string>,
-    loading: boolean
-  ): string | undefined => {
-    if (!fieldValue) return undefined;
-
-    // If the backend already populated the object, use the name directly
-    if (typeof fieldValue === 'object') {
-      if (fieldValue.name) return fieldValue.name;
-      // Object without name — use _id to look up
-      const resolved = lookupMap.get(fieldValue._id);
-      if (resolved) return resolved;
-      if (loading) return 'Loading...';
-      return fieldValue._id;
-    }
-
-    // It's a raw string — look it up in the map
-    const resolved = lookupMap.get(fieldValue);
-    if (resolved) return resolved;
-    if (loading) return 'Loading...';
-    return fieldValue;
-  };
-
+  // CRITICAL: Backend now populates currentDeptId, currentCourseId, and currentHostelId
+  // with objects containing 'name'. No need for manual resolution maps.
+  
   const isHidden = (field: string) => displayProfile?.privacySettings?.hiddenFields?.includes(field);
+
+  // Helper to extract name from populated academic field
+  const getAcademicName = (field: any) => {
+    if (!field) return undefined;
+    if (typeof field === 'object' && field.name) return field.name;
+    return field; // Fallback to raw value if not populated
+  };
 
   const followMut = useFollowMutation();
   const unfollowMut = useUnfollowMutation();
@@ -261,21 +203,21 @@ const ProfilePage: React.FC = () => {
             />
             <InfoRow 
               label="Dept" 
-              value={resolveFromMap(displayProfile?.currentDeptId, deptMap, deptsLoading)} 
+              value={getAcademicName(displayProfile?.currentDeptId)} 
               fallback="Not set" 
               isHidden={isHidden('dept')} 
               isMe={isMe} 
             />
             <InfoRow 
               label="Course" 
-              value={resolveFromMap(displayProfile?.currentCourseId, courseMap, coursesLoading)} 
+              value={getAcademicName(displayProfile?.currentCourseId)} 
               fallback="Not set" 
               isHidden={isHidden('course')} 
               isMe={isMe} 
             />
             <InfoRow 
               label="Hostel" 
-              value={resolveFromMap(displayProfile?.currentHostelId, hostelMap, hostelsLoading)} 
+              value={getAcademicName(displayProfile?.currentHostelId)} 
               fallback="Not set" 
               isHidden={isHidden('hostel')} 
               isMe={isMe} 

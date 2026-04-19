@@ -120,68 +120,100 @@ const FollowersPage: React.FC = () => {
   const cancelMut = useCancelFollowMutation();
   const followMut = useFollowMutation();
 
-  const tabs: { id: SocialTab; label: string; count?: number }[] = [
-    { id: 'followers', label: 'Followers', count: followersQuery.data?.length },
-    { id: 'following', label: 'Following', count: followingQuery.data?.length },
+  const tabs: { id: SocialTab; label: string }[] = [
+    { id: 'followers', label: 'Followers' },
+    { id: 'following', label: 'Following' },
     { id: 'search', label: 'Search' },
-    { id: 'requests', label: 'Requests', count: pendingQuery.data?.length },
-    { id: 'sent', label: 'Sent', count: sentQuery.data?.length },
+    { id: 'requests', label: 'Requests' },
+    { id: 'sent', label: 'Sent' },
   ];
 
   const renderList = () => {
     switch (activeTab) {
       case 'followers': {
         if (followersQuery.isLoading) return <LoadingSpinner />;
-        if (!followersQuery.data?.length) return <EmptyState message="No followers yet." />;
         
-        // Helper to check if we are already following this user
-        const isFollowing = (userId: string) => followingQuery.data?.some(f => f._id === userId);
+        const allItems = followersQuery.data?.pages.flatMap(page => page.items) || [];
+        if (allItems.length === 0) return <EmptyState message="No followers yet." />;
+        
+        const followingIds = new Set(followingQuery.data?.pages.flatMap(page => page.items).map(f => f._id) || []);
 
-        return followersQuery.data.map((u: IFollowListItem) => (
-          <UserCard
-            key={u._id}
-            user={u}
-            onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
-            actions={
-              <>
-                {!isFollowing(u._id) && (
-                  <Button 
-                    variant="primary" 
-                    onClick={() => followMut.mutate(u._id)} 
-                    disabled={followMut.isPending} 
-                    className="text-xs"
-                  >
-                    Follow back
-                  </Button>
-                )}
-                <Button 
-                  variant="outline" 
-                  onClick={() => removeFollowerMut.mutate(u._id)} 
-                  disabled={removeFollowerMut.isPending} 
-                  className="text-xs"
-                >
-                  Remove
-                </Button>
-              </>
-            }
-          />
-        ));
+        return (
+          <div className="space-y-4">
+            {allItems.map((u: IFollowListItem) => (
+              <UserCard
+                key={u._id}
+                user={u}
+                onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
+                actions={
+                  <>
+                    {!followingIds.has(u._id) && (
+                      <Button 
+                        variant="primary" 
+                        onClick={() => followMut.mutate(u._id)} 
+                        disabled={followMut.isPending} 
+                        className="text-xs"
+                      >
+                        Follow back
+                      </Button>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      onClick={() => removeFollowerMut.mutate(u._id)} 
+                      disabled={removeFollowerMut.isPending} 
+                      className="text-xs"
+                    >
+                      Remove
+                    </Button>
+                  </>
+                }
+              />
+            ))}
+            {followersQuery.hasNextPage && (
+              <Button
+                variant="outline"
+                onClick={() => followersQuery.fetchNextPage()}
+                disabled={followersQuery.isFetchingNextPage}
+                className="w-full text-xs py-3 border-dashed"
+              >
+                {followersQuery.isFetchingNextPage ? 'Loading more...' : 'Load More Followers'}
+              </Button>
+            )}
+          </div>
+        );
       }
       case 'following': {
         if (followingQuery.isLoading) return <LoadingSpinner />;
-        if (!followingQuery.data?.length) return <EmptyState message="Not following anyone yet." />;
-        return followingQuery.data.map((u: IFollowListItem) => (
-          <UserCard
-            key={u._id}
-            user={u}
-            onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
-            actions={
-              <Button variant="outline" onClick={() => unfollowMut.mutate(u._id)} disabled={unfollowMut.isPending} className="text-xs">
-                Unfollow
+        
+        const allItems = followingQuery.data?.pages.flatMap(page => page.items) || [];
+        if (allItems.length === 0) return <EmptyState message="Not following anyone yet." />;
+
+        return (
+          <div className="space-y-4">
+            {allItems.map((u: IFollowListItem) => (
+              <UserCard
+                key={u._id}
+                user={u}
+                onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
+                actions={
+                  <Button variant="outline" onClick={() => unfollowMut.mutate(u._id)} disabled={unfollowMut.isPending} className="text-xs">
+                    Unfollow
+                  </Button>
+                }
+              />
+            ))}
+            {followingQuery.hasNextPage && (
+              <Button
+                variant="outline"
+                onClick={() => followingQuery.fetchNextPage()}
+                disabled={followingQuery.isFetchingNextPage}
+                className="w-full text-xs py-3 border-dashed"
+              >
+                {followingQuery.isFetchingNextPage ? 'Loading more...' : 'Load More Results'}
               </Button>
-            }
-          />
-        ));
+            )}
+          </div>
+        );
       }
       case 'search': {
         return (
@@ -229,40 +261,74 @@ const FollowersPage: React.FC = () => {
       }
       case 'requests': {
         if (pendingQuery.isLoading) return <LoadingSpinner />;
-        if (!pendingQuery.data?.length) return <EmptyState message="No pending requests." />;
-        return pendingQuery.data.map((u: IFollowListItem) => (
-          <UserCard
-            key={u._id}
-            user={u}
-            onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
-            actions={
-              <>
-                <Button variant="primary" onClick={() => acceptMut.mutate(u._id)} disabled={acceptMut.isPending} className="text-xs">
-                  Accept
-                </Button>
-                <Button variant="outline" onClick={() => rejectMut.mutate(u._id)} disabled={rejectMut.isPending} className="text-xs">
-                  Reject
-                </Button>
-              </>
-            }
-          />
-        ));
+        
+        const allItems = pendingQuery.data?.pages.flatMap(page => page.items) || [];
+        if (allItems.length === 0) return <EmptyState message="No pending requests." />;
+
+        return (
+          <div className="space-y-4">
+            {allItems.map((u: IFollowListItem) => (
+              <UserCard
+                key={u._id}
+                user={u}
+                onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
+                actions={
+                  <>
+                    <Button variant="primary" onClick={() => acceptMut.mutate(u._id)} disabled={acceptMut.isPending} className="text-xs">
+                      Accept
+                    </Button>
+                    <Button variant="outline" onClick={() => rejectMut.mutate(u._id)} disabled={rejectMut.isPending} className="text-xs">
+                      Reject
+                    </Button>
+                  </>
+                }
+              />
+            ))}
+            {pendingQuery.hasNextPage && (
+              <Button
+                variant="outline"
+                onClick={() => pendingQuery.fetchNextPage()}
+                disabled={pendingQuery.isFetchingNextPage}
+                className="w-full text-xs py-3 border-dashed"
+              >
+                {pendingQuery.isFetchingNextPage ? 'Loading more...' : 'Load More Requests'}
+              </Button>
+            )}
+          </div>
+        );
       }
       case 'sent': {
         if (sentQuery.isLoading) return <LoadingSpinner />;
-        if (!sentQuery.data?.length) return <EmptyState message="No sent requests." />;
-        return sentQuery.data.map((u: IFollowListItem) => (
-          <UserCard
-            key={u._id}
-            user={u}
-            onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
-            actions={
-              <Button variant="outline" onClick={() => cancelMut.mutate(u._id)} disabled={cancelMut.isPending} className="text-xs">
-                Cancel
+
+        const allItems = sentQuery.data?.pages.flatMap(page => page.items) || [];
+        if (allItems.length === 0) return <EmptyState message="No sent requests." />;
+
+        return (
+          <div className="space-y-4">
+            {allItems.map((u: IFollowListItem) => (
+              <UserCard
+                key={u._id}
+                user={u}
+                onViewProfile={() => navigate(`/profile/${u.username || u._id}`)}
+                actions={
+                  <Button variant="outline" onClick={() => cancelMut.mutate(u._id)} disabled={cancelMut.isPending} className="text-xs">
+                    Cancel
+                  </Button>
+                }
+              />
+            ))}
+            {sentQuery.hasNextPage && (
+              <Button
+                variant="outline"
+                onClick={() => sentQuery.fetchNextPage()}
+                disabled={sentQuery.isFetchingNextPage}
+                className="w-full text-xs py-3 border-dashed"
+              >
+                {sentQuery.isFetchingNextPage ? 'Loading more...' : 'Load More Results'}
               </Button>
-            }
-          />
-        ));
+            )}
+          </div>
+        );
       }
     }
   };
@@ -287,11 +353,6 @@ const FollowersPage: React.FC = () => {
               className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-[14px] text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-primary text-white shadow-md scale-[1.02]' : 'hover:bg-primary/10'}`}
             >
               {tab.label}
-              {tab.count !== undefined && tab.count > 0 && (
-                <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-white/20' : 'bg-foreground/10'}`}>
-                   {tab.count}
-                </span>
-              )}
             </button>
           ))}
         </div>

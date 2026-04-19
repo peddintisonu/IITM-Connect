@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { IRelationship, IFollowListItem, IBlock, IBlockDetail } from '../types/social.types';
+import type { IRelationship, IFollowListItem, IBlock, IBlockDetail, IPaginatedResponse } from '../types/social.types';
 
 export const socialService = {
   // --- Follow ---
@@ -33,36 +33,56 @@ export const socialService = {
     return res.data.data;
   },
 
-  getFollowers: async (): Promise<IFollowListItem[]> => {
-    const res = await api.get('/api/v1/social/follow/followers');
-    return res.data.data.map((item: any) => ({
-      ...item.followerId,
-      relationshipId: item._id
-    }));
+  getFollowers: async (cursor?: string, limit = 20): Promise<IPaginatedResponse<IFollowListItem>> => {
+    const res = await api.get(`/api/v1/social/follow/followers?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`);
+    const { items, nextCursor, hasMore } = res.data.data;
+    return {
+      items: items.map((item: any) => ({
+        ...item.followerId,
+        relationshipId: item._id
+      })),
+      nextCursor,
+      hasMore
+    };
   },
 
-  getFollowing: async (): Promise<IFollowListItem[]> => {
-    const res = await api.get('/api/v1/social/follow/following');
-    return res.data.data.map((item: any) => ({
-      ...item.followingId,
-      relationshipId: item._id
-    }));
+  getFollowing: async (cursor?: string, limit = 20): Promise<IPaginatedResponse<IFollowListItem>> => {
+    const res = await api.get(`/api/v1/social/follow/following?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`);
+    const { items, nextCursor, hasMore } = res.data.data;
+    return {
+      items: items.map((item: any) => ({
+        ...item.followingId,
+        relationshipId: item._id
+      })),
+      nextCursor,
+      hasMore
+    };
   },
 
-  getPendingRequests: async (): Promise<IFollowListItem[]> => {
-    const res = await api.get('/api/v1/social/follow/requests');
-    return res.data.data.map((item: any) => ({
-      ...item.followerId,
-      relationshipId: item._id
-    }));
+  getPendingRequests: async (cursor?: string, limit = 20): Promise<IPaginatedResponse<IFollowListItem>> => {
+    const res = await api.get(`/api/v1/social/follow/requests?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`);
+    const { items, nextCursor, hasMore } = res.data.data;
+    return {
+      items: items.map((item: any) => ({
+        ...item.followerId,
+        relationshipId: item._id
+      })),
+      nextCursor,
+      hasMore
+    };
   },
 
-  getSentRequests: async (): Promise<IFollowListItem[]> => {
-    const res = await api.get('/api/v1/social/follow/requests/sent');
-    return res.data.data.map((item: any) => ({
-      ...item.followingId,
-      relationshipId: item._id
-    }));
+  getSentRequests: async (cursor?: string, limit = 20): Promise<IPaginatedResponse<IFollowListItem>> => {
+    const res = await api.get(`/api/v1/social/follow/requests/sent?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`);
+    const { items, nextCursor, hasMore } = res.data.data;
+    return {
+      items: items.map((item: any) => ({
+        ...item.followingId,
+        relationshipId: item._id
+      })),
+      nextCursor,
+      hasMore
+    };
   },
 
   getRelationship: async (studentId: string): Promise<IRelationship> => {

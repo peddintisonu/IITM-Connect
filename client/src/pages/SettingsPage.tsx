@@ -372,13 +372,16 @@ const SettingsPage: React.FC = () => {
         {/* Sessions Tab */}
         {activeTab === 'sessions' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Active Sessions</h2>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold">Active Sessions</h2>
+                <p className="text-sm text-foreground/50 mt-1">Manage your logged-in devices and session history.</p>
+              </div>
               <Button
                 variant="outline"
                 onClick={() => logoutAllMut.mutate()}
                 disabled={logoutAllMut.isPending}
-                className="text-sm border-red-400 text-red-500 hover:bg-red-50"
+                className="text-sm border-red-400 text-red-500 hover:bg-red-50 w-fit"
               >
                 {logoutAllMut.isPending ? 'Logging out...' : 'Logout All Others'}
               </Button>
@@ -398,26 +401,87 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 {sessionsQuery.data.sessions.map((session: ISession) => {
                   const isCurrent = session._id === sessionsQuery.data.currentSessionId;
+                  const isEnded = !!session.endedAt;
+                  
+                  const formatDate = (dateStr: string | undefined) => {
+                    if (!dateStr) return 'N/A';
+                    return new Intl.DateTimeFormat('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    }).format(new Date(dateStr));
+                  };
+
+                  const getEndReasonLabel = (reason: string | undefined) => {
+                    if (!reason) return 'Ended';
+                    const labels: Record<string, string> = {
+                      logout: 'Logged Out',
+                      expired: 'Session Expired',
+                      revoked: 'Revoked'
+                    };
+                    return labels[reason] || reason;
+                  };
+
                   return (
-                    <div key={session._id} className={`bg-card rounded-[20px] p-6 border ${isCurrent ? 'border-primary' : 'border-border'} flex items-center justify-between`}>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm">{session.deviceInfo || 'Unknown Device'}</p>
-                          {isCurrent && <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Current</span>}
+                    <div key={session._id} className={`bg-card rounded-[24px] p-6 border transition-all ${isCurrent ? 'border-primary shadow-sm bg-primary/5' : isEnded ? 'border-border opacity-70 grayscale-[0.3]' : 'border-border'}`}>
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                        <div className="space-y-4 flex-1">
+                          {/* Device & Status */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-2xl" role="img" aria-label="device">
+                              {session.userAgent?.toLowerCase().includes('mobile') ? '📱' : '💻'}
+                            </span>
+                            <p className="font-bold text-base">{session.deviceInfo || 'Unknown Device'}</p>
+                            {isCurrent && (
+                              <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">Current</span>
+                            )}
+                            {isEnded && (
+                              <span className="bg-foreground/10 text-foreground/60 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                {getEndReasonLabel(session.endReason)}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Details Grid */}
+                          <div className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">Location</p>
+                              <p className="text-xs font-medium">
+                                {session.currentLocation?.city || session.initialLocation?.city || 'Unknown City'}
+                                {session.currentLocation?.country && `, ${session.currentLocation.country}`}
+                              </p>
+                              <p className="text-[10px] text-foreground/30">IP: {session.currentLocation?.ip || session.initialLocation?.ip || 'Hidden'}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-foreground/40">History</p>
+                              <div className="space-y-1">
+                                <p className="text-[11px]">
+                                  <span className="text-foreground/40">First login:</span> {formatDate(session.createdAt)}
+                                </p>
+                                <p className="text-[11px]">
+                                  <span className="text-foreground/40">{isEnded ? 'Ended at:' : 'Last active:'}</span> {formatDate(isEnded ? session.endedAt : session.lastAccessedAt)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-xs text-foreground/50">{session.currentLocation?.city || session.initialLocation?.city || 'Unknown location'} · {session.currentLocation?.country || session.initialLocation?.country || ''}</p>
-                        <p className="text-xs text-foreground/40">Last active: {session.lastAccessedAt ? new Date(session.lastAccessedAt).toLocaleString() : 'N/A'}</p>
+
+                        {!isCurrent && !isEnded && (
+                          <div className="shrink-0">
+                            <Button
+                              variant="outline"
+                              onClick={() => revokeMut.mutate(session._id)}
+                              disabled={revokeMut.isPending}
+                              className="text-xs font-bold border-red-200 text-red-500 hover:bg-red-50 px-6 py-2.5 rounded-xl shadow-sm"
+                            >
+                              {revokeMut.isPending ? 'Processing...' : 'Revoke Session'}
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      {!isCurrent && (
-                        <Button
-                          variant="outline"
-                          onClick={() => revokeMut.mutate(session._id)}
-                          disabled={revokeMut.isPending}
-                          className="text-xs border-red-300 text-red-500 hover:bg-red-50"
-                        >
-                          Revoke
-                        </Button>
-                      )}
                     </div>
                   );
                 })}

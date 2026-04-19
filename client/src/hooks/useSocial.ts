@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { socialService } from '../services/social.service';
 
 // --- Queries ---
@@ -12,30 +12,38 @@ export const useRelationshipQuery = (studentId: string) => {
 };
 
 export const useFollowersQuery = () => {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['socialFollowers'],
-    queryFn: () => socialService.getFollowers(),
+    queryFn: ({ pageParam }) => socialService.getFollowers(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 };
 
 export const useFollowingQuery = () => {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['socialFollowing'],
-    queryFn: () => socialService.getFollowing(),
+    queryFn: ({ pageParam }) => socialService.getFollowing(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 };
 
 export const usePendingRequestsQuery = () => {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['socialPendingRequests'],
-    queryFn: () => socialService.getPendingRequests(),
+    queryFn: ({ pageParam }) => socialService.getPendingRequests(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 };
 
 export const useSentRequestsQuery = () => {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['socialSentRequests'],
-    queryFn: () => socialService.getSentRequests(),
+    queryFn: ({ pageParam }) => socialService.getSentRequests(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 };
 

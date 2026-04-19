@@ -44,4 +44,11 @@ export interface IFollowListItem {
   profilePhoto?: string;
   fullName: string;
   accountType?: 'public' | 'private';
+  relationshipId?: string;
+}
+
+export interface IPaginatedResponse<T> {
+  items: T[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }

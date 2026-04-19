@@ -16,5 +16,7 @@ export interface ISession {
   initialLocation?: ILocationInfo;
   currentLocation?: ILocationInfo;
   createdAt: string;
-  isCurrent?: boolean; // Injected by the getSessions controller
+  isCurrent?: boolean;
+  endedAt?: string;
+  endReason?: 'logout' | 'expired' | 'revoked';
 }
