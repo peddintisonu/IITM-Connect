@@ -12,15 +12,15 @@
 //   → return all students this person has blocked
 
 import mongoose from "mongoose";
-import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
-import { ApiError } from "../../shared/utils";
-import { SocialListPaginationInput } from "../../validations/social.validation";
-import { STUDENT_STATUS } from "../students/student.constants";
-import Student from "../students/student.model";
+import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
+import { ApiError } from "../../../shared/utils";
+import { SocialListPaginationInput } from "../../../validations/social.validation";
+import { STUDENT_STATUS } from "../../students/student.constants";
+import Student from "../../students/student.model";
+import { Follow } from "../follow/follow.model";
+import { socialErrorMessages } from "../socialMessages";
+import { encodeSocialListCursor, parseSocialListCursor } from "../utils";
 import { Block } from "./block.model";
-import { Follow } from "./follow.model";
-import { socialErrorMessages } from "./socialMessages";
-import { encodeSocialListCursor, parseSocialListCursor } from "./utils";
 
 export const blockStudent = async (
     blockerId: mongoose.Types.ObjectId,

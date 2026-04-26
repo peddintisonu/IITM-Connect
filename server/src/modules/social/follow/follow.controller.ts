@@ -1,17 +1,19 @@
-// server/src/modules/social/follow.controller.ts
+// server/src/modules/social/follow/follow.controller.ts
 
-import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
+import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
 import {
     ApiError,
     ApiResponse,
     asyncHandler,
     toObjectId,
     validateAndParse,
-} from "../../shared/utils";
+} from "../../../shared/utils";
 import {
     SocialListPaginationInput,
     socialListPaginationSchema,
-} from "../../validations/social.validation";
+} from "../../../validations/social.validation";
+import { FOLLOW_TYPE } from "../social.constants";
+import { socialErrorMessages, socialRouteMessages } from "../socialMessages";
 import {
     acceptFollowRequest,
     cancelSentFollowRequest,
@@ -25,8 +27,6 @@ import {
     sendFollowRequest,
     unfollow,
 } from "./follow.service";
-import { FOLLOW_TYPE } from "./social.constants";
-import { socialErrorMessages, socialRouteMessages } from "./socialMessages";
 
 export const sendFollowRequestController = asyncHandler(async (req, res) => {
     const { followingType } = req.body;

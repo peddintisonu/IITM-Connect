@@ -9,7 +9,7 @@ import {
     blockController,
     getBlockListController,
     unblockController,
-} from "./block.controller";
+} from "./block/block.controller";
 import {
     acceptFollowRequestController,
     cancelSentFollowRequestController,
@@ -22,7 +22,7 @@ import {
     removeFollowerController,
     sendFollowRequestController,
     unfollowController,
-} from "./follow.controller";
+} from "./follow/follow.controller";
 
 const router = Router();
 

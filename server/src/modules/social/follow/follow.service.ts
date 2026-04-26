@@ -1,21 +1,21 @@
 // server/src/modules/social/follow.service.ts
 
 import mongoose from "mongoose";
-import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
-import { ApiError, ensureStudentExists } from "../../shared/utils";
-import { SocialListPaginationInput } from "../../validations/social.validation";
-import { STUDENT_STATUS } from "../students/student.constants";
-import Student from "../students/student.model";
-import { Block } from "./block.model";
-import { Follow } from "./follow.model";
-import { FOLLOW_STATUS, FOLLOW_TYPE } from "./social.constants";
-import { socialErrorMessages } from "./socialMessages";
+import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
+import { ApiError, ensureStudentExists } from "../../../shared/utils";
+import { SocialListPaginationInput } from "../../../validations/social.validation";
+import { STUDENT_STATUS } from "../../students/student.constants";
+import Student from "../../students/student.model";
+import { Block } from "../block/block.model";
+import { FOLLOW_STATUS, FOLLOW_TYPE } from "../social.constants";
+import { socialErrorMessages } from "../socialMessages";
 import {
     encodeSocialListCursor,
     isBlockedBetween,
     PaginatedListResult,
     parseSocialListCursor,
-} from "./utils";
+} from "../utils";
+import { Follow } from "./follow.model";
 
 export const sendFollowRequest = async (
     followerId: mongoose.Types.ObjectId,

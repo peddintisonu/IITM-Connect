@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Block } from "../block.model";
+import { Block } from "../block/block.model";
 
 /**
  * Checks if a bidirectional block exists between two users.

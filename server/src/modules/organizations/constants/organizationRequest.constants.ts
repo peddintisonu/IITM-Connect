@@ -1,0 +1,44 @@
+export const ORGANIZATION_REQUEST_STATUS = {
+    PENDING: "pending",
+    APPROVED: "approved",
+    REJECTED: "rejected",
+    CANCELLED: "cancelled",
+} as const;
+
+export type OrganizationRequestStatus =
+    (typeof ORGANIZATION_REQUEST_STATUS)[keyof typeof ORGANIZATION_REQUEST_STATUS];
+
+export const ORGANIZATION_REQUEST_STATUS_ENUM = [
+    ORGANIZATION_REQUEST_STATUS.PENDING,
+    ORGANIZATION_REQUEST_STATUS.APPROVED,
+    ORGANIZATION_REQUEST_STATUS.REJECTED,
+    ORGANIZATION_REQUEST_STATUS.CANCELLED,
+] as const;
+
+export const ORGANIZATION_APPROVER_TYPE = {
+    SUPER_ADMIN: "super_admin",
+    PARENT_TOP_POR: "parent_top_por",
+} as const;
+
+export type OrganizationApproverType =
+    (typeof ORGANIZATION_APPROVER_TYPE)[keyof typeof ORGANIZATION_APPROVER_TYPE];
+
+export const ORGANIZATION_APPROVER_TYPE_ENUM = [
+    ORGANIZATION_APPROVER_TYPE.SUPER_ADMIN,
+    ORGANIZATION_APPROVER_TYPE.PARENT_TOP_POR,
+] as const;
+
+export const ORGANIZATION_APPROVAL_STATUS = {
+    PENDING: "pending",
+    APPROVED: "approved",
+    REJECTED: "rejected",
+} as const;
+
+export type OrganizationApprovalStatus =
+    (typeof ORGANIZATION_APPROVAL_STATUS)[keyof typeof ORGANIZATION_APPROVAL_STATUS];
+
+export const ORGANIZATION_APPROVAL_STATUS_ENUM = [
+    ORGANIZATION_APPROVAL_STATUS.PENDING,
+    ORGANIZATION_APPROVAL_STATUS.APPROVED,
+    ORGANIZATION_APPROVAL_STATUS.REJECTED,
+] as const;

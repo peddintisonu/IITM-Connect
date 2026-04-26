@@ -11,6 +11,7 @@
         "start": "cross-env NODE_ENV=production node dist/server.js",
         "seed": "ts-node src/seeds/index.ts",
         "seed:master-data": "ts-node src/seeds/masterData/index.ts",
+        "seed:pors": "ts-node src/seeds/pors/index.ts",
         "seed:test-students": "ts-node src/seeds/testStudents/index.ts",
         "seed:test-students:cleanup": "ts-node src/seeds/testStudents/cleanup.index.ts",
         "seed:roles": "ts-node src/seeds/roles/index.ts"

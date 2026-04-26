@@ -1,18 +1,18 @@
 // server/src/modules/social/block.controller.ts
 
-import { HTTP_STATUS } from "../../shared/constants/http-status.constants";
+import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
 import {
     ApiResponse,
     asyncHandler,
     toObjectId,
     validateAndParse,
-} from "../../shared/utils";
+} from "../../../shared/utils";
 import {
     SocialListPaginationInput,
     socialListPaginationSchema,
-} from "../../validations/social.validation";
+} from "../../../validations/social.validation";
+import { socialRouteMessages } from "../socialMessages";
 import { blockStudent, getBlockList, unblockStudent } from "./block.service";
-import { socialRouteMessages } from "./socialMessages";
 
 export const blockController = asyncHandler(async (req, res) => {
     const blockerId = req.user!._id;

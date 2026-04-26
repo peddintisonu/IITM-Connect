@@ -95,6 +95,34 @@ LinkedIn (verified student identity + roles/PORs)
 - Organization categories (club, team, fest, hostel body, department body, committee, institute body)
 - POR-oriented role structures and hierarchy foundation
 - Handover-ready role lifecycle architecture
+- Student-initiated organization request workflow with approval gates
+- First-tenure and first-role bootstrap captured during organization request
+- Role-duty governance model for organization page operations
+
+#### V1 Governance Flow (Detailed)
+
+1. Any onboarded student can submit an organization creation request.
+2. Request payload includes:
+    - organization basics (name, type, parent if applicable)
+    - first tenure definition (name, dates, cycle year when applicable)
+    - first tenure role configuration (hierarchy and role limits)
+    - creator's requested role in the first tenure
+3. Request is reviewed by super admin, and optionally by top POR of parent organization when parent-linked governance is required.
+4. Only after approval:
+    - organization page is created
+    - first tenure is created
+    - first tenure role configuration is created
+    - creator role assignment is verified and activated
+5. After activation, page operations are driven by organization role duties and hierarchy policy.
+
+#### V1 Role Duty and Approval Rules
+
+1. Duties are action-level permissions (profile edits, post actions, member actions, tenure actions), not only role labels.
+2. Duties are mapped to POR roles at organization scope.
+3. Approval authority follows hierarchy:
+    - upper roles can approve lower roles
+    - highest role can approve any role in the organization, including parallel-level roles
+4. Role labels can persist across tenures while active usage and hierarchy can vary tenure to tenure.
 
 #### Campus Content and Operations
 
@@ -206,12 +234,14 @@ Closed beta -> Student body endorsement -> Dean-level alignment -> Wider institu
 
 ## 10. Risks and Mitigations
 
-| Risk                                             | Impact                              | Mitigation                                                          |
-| :----------------------------------------------- | :---------------------------------- | :------------------------------------------------------------------ |
-| Ambiguous API contracts between frontend/backend | Incorrect UI assumptions and rework | Maintain explicit contract docs outside PRD and keep them versioned |
-| Governance complexity in POR transitions         | Workflow confusion                  | Keep policy and role transitions auditable and explicit             |
-| Privacy misunderstanding by users                | Trust loss                          | Clear defaults and explainable privacy controls                     |
-| Multi-module scope creep                         | Delayed launches                    | Strong V1 boundary and staged V2 delivery                           |
+| Risk                                             | Impact                              | Mitigation                                                            |
+| :----------------------------------------------- | :---------------------------------- | :-------------------------------------------------------------------- |
+| Ambiguous API contracts between frontend/backend | Incorrect UI assumptions and rework | Maintain explicit contract docs outside PRD and keep them versioned   |
+| Governance complexity in POR transitions         | Workflow confusion                  | Keep policy and role transitions auditable and explicit               |
+| Unclear organization request approvals           | Delayed launch and disputes         | Define explicit request stages, approver order, and rejection reasons |
+| Role label vs duty mismatch                      | Unauthorized actions or blockers    | Use action-level duty mapping and hierarchy-based approval checks     |
+| Privacy misunderstanding by users                | Trust loss                          | Clear defaults and explainable privacy controls                       |
+| Multi-module scope creep                         | Delayed launches                    | Strong V1 boundary and staged V2 delivery                             |
 
 ---
 

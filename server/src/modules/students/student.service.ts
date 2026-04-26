@@ -17,8 +17,8 @@ import {
 } from "../../validations/student.validation";
 import { Course } from "../core/models/course.model";
 import { Department } from "../core/models/department.model";
-import { Block } from "../social/block.model";
-import { Follow } from "../social/follow.model";
+import { Block } from "../social/block/block.model";
+import { Follow } from "../social/follow/follow.model";
 import { isBlockedBetween } from "../social/utils";
 import {
     HIDDEN_FIELD_TO_STUDENT_FIELD_MAP,

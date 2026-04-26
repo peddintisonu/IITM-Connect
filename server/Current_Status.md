@@ -2,7 +2,7 @@
 
 ## Snapshot
 
-- Date: 19-04-2026
+- Date: 21-04-2026
 - Stack in active use: Express + TypeScript + MongoDB + Passport Google OAuth + Zod + Swagger + React + Vite
 - Current source of truth split:
     - `PRD.md` -> product vision and V1/V2 scope
@@ -210,6 +210,36 @@
 
 ---
 
+## 2.7 Organization and POR Foundation
+
+### Completed
+
+- Organization module base model is in place with:
+    - category
+    - slug
+    - profile/core metadata
+    - parent org linkage
+    - capability flags
+- POR role catalog model is in place with category allow-list and duplicate prevention strategy.
+- Tenure model is in place with lifecycle and handover status support.
+- Tenure role config model is in place (one role config document per role per tenure).
+- Organization request model is in place with:
+    - student-initiated request payload
+    - first tenure payload
+    - first tenure role config payload
+    - creator requested role
+    - approval-step workflow support
+    - optional parent-top-POR approval step in addition to super-admin step
+- Organization duty model is in place to map role-level duties and approval authority flags.
+
+### Current Status
+
+- Data models are implemented.
+- Service/controller/routes and transactional provisioning flow are not yet implemented.
+- No live organization API mount yet.
+
+---
+
 ## 3. Frontend Status (Current Reality)
 
 ### Completed
@@ -243,7 +273,7 @@
 
 ### Not Yet in Place (Major V1 Buckets)
 
-- Organization/POR hierarchy domain modules
+- Organization/POR hierarchy execution flows (services, controllers, routes, approvals, assignments)
 - Feed and post system
 - Events lifecycle
 - Polls and forums
@@ -294,6 +324,28 @@
 - Add route-to-swagger consistency checks in CI.
 - Add module-level integration test suites.
 - Maintain API changelog entries for contract-impacting changes.
+
+## 5.7 Organization and Governance Next Up
+
+- Implement organization request service and APIs:
+    - submit request
+    - list/review queue
+    - approve/reject with remarks
+- Implement approval orchestration:
+    - super-admin approval flow
+    - optional parent-top-POR approval participation
+- Implement transactional provisioning on approval:
+    - create organization
+    - create first tenure
+    - create first tenure role configuration set
+    - verify/activate creator role assignment
+- Implement role-duty enforcement middleware for organization actions.
+- Add POR holder assignment model and APIs for current-team and past-team derivation.
+- Add validation guards:
+    - date validity
+    - hierarchy consistency
+    - duplicate/invalid role config detection
+    - request-state transition integrity
 
 ---
 

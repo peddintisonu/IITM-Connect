@@ -287,23 +287,44 @@ What app should do:
 2. Store organization identity independently of current office bearers.
 3. Support hierarchical relationships where relevant.
 4. Allow controlled org profile updates.
+5. Support student-initiated organization creation via approval workflow.
+6. Capture first tenure, initial role hierarchy, and creator requested role in the same request flow.
 
 Suggested implementation:
 
 1. Immutable org identity record.
 2. Versioned structure/profile metadata for significant changes.
-3. Role-based management boundaries.
+3. Request-first creation pipeline using a draft/request collection before live org creation.
+4. Approval-step model with super-admin approval and optional parent-top-POR approval.
+5. On approval, atomically create organization + first tenure + first tenure role configuration.
 
 UX expectations:
 
 1. Org profile with tabs: About, Members, Roles, Tenures, Posts, Events.
-2. Org management workspace for admins.
-3. Hierarchy visualization where applicable.
+2. Org request form that includes organization data, first tenure, role structure, and creator role.
+3. Approval queue for super admins and optional parent governance approvers.
+4. Hierarchy visualization where applicable.
 
 Risks:
 
 1. Hard-deleting entities tied to historical POR data.
 2. Unscoped edit privileges.
+3. Duplicate request spam for same slug/name without clear request-state policy.
+
+Flow blueprint:
+
+1. Request submission:
+    - Any eligible student submits organization details, first tenure, role config, and creator role choice.
+2. Request review:
+    - Super admin approval required.
+    - Parent top-POR approval optional when org is parent-linked and governance policy requires it.
+3. Provisioning:
+    - Create organization record.
+    - Create first tenure record.
+    - Create first tenure role configuration rows.
+    - Activate creator role assignment after verification.
+4. Post-approval operations:
+    - Organization page actions are controlled by role-duty policies and hierarchy approval rules.
 
 ---
 
@@ -319,23 +340,29 @@ What app should do:
 2. Run approval chain per org policy.
 3. Activate POR within valid tenure.
 4. Complete or revoke POR with reason and auditability.
+5. Support hierarchy-aware approvals where upper roles approve lower roles.
+6. Allow highest role to approve any role in org, including parallel-level roles.
 
 Suggested implementation:
 
 1. POR records tied to role template version and tenure.
 2. Append-only lifecycle events.
 3. Explicit approval graph by role level.
+4. Separate role labels from duty permissions to avoid policy ambiguity.
+5. Keep role catalog stable while per-tenure activation/hierarchy changes remain flexible.
 
 UX expectations:
 
 1. Nomination workflow UI.
 2. Approval queue UI for authorized reviewers.
 3. POR timeline with status badges and event history.
+4. Explainable approval-path display (who can approve whom).
 
 Risks:
 
 1. Multiple active holders violating policy constraints.
 2. Missing audit context on revocation.
+3. Role title interpreted as permission without duty map.
 
 ---
 
@@ -351,23 +378,29 @@ What app should do:
 2. Trigger reminders before tenure end.
 3. Collect and store handover notes/checklists.
 4. Ensure transition from outgoing to incoming holder is traceable.
+5. Allow each tenure to have its own role activation and hierarchy shape.
+6. Support tenure-to-tenure structural changes without mutating historical records.
 
 Suggested implementation:
 
 1. Tenure entity separated from POR entity.
 2. Handover packet schema with structured sections.
 3. State machine for pre-close, close, and archive milestones.
+4. Tenure role config as one row per role per tenure for update isolation and audit clarity.
+5. Keep historical tenure configurations immutable once archived.
 
 UX expectations:
 
 1. Tenure dashboard with countdown and risk markers.
 2. Handover checklist view with completion indicators.
 3. Historical handover archive access for next holders.
+4. Current team vs past teams views derived from active/closed tenure assignments.
 
 Risks:
 
 1. Silent tenure expiry without handover completion.
 2. New holder activation before previous closure actions.
+3. Mid-tenure hierarchy edits without clear effective-date audit trail.
 
 ---
 
