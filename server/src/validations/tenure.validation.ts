@@ -25,22 +25,6 @@ const tenureMonthYearSchema = z
         }
     );
 
-const tenureDateSchema = z
-    .object({
-        startDate: z.coerce.date().optional(),
-        endDate: z.coerce.date().optional(),
-    })
-    .refine(
-        (value) => {
-            if (!value.startDate || !value.endDate) return true;
-            return value.endDate > value.startDate;
-        },
-        {
-            message: "endDate must be after startDate",
-            path: ["endDate"],
-        }
-    );
-
 export const createTenureSchema = z
     .object({
         orgId: z
@@ -50,8 +34,7 @@ export const createTenureSchema = z
         cycleYear: z.number().int().min(1900).max(2500).optional(),
         status: z.enum(TENURE_STATUS_ENUM).optional(),
     })
-    .merge(tenureMonthYearSchema)
-    .merge(tenureDateSchema);
+    .merge(tenureMonthYearSchema);
 
 export type CreateTenureInput = z.infer<typeof createTenureSchema>;
 
@@ -63,8 +46,6 @@ export const updateTenureSchema = z
         startYear: YEAR_SCHEMA.optional(),
         endMonth: MONTH_SCHEMA.optional(),
         endYear: YEAR_SCHEMA.optional(),
-        startDate: z.coerce.date().optional(),
-        endDate: z.coerce.date().optional(),
         status: z.enum(TENURE_STATUS_ENUM).optional(),
     })
     .refine((value) => Object.keys(value).length > 0, {
@@ -89,8 +70,8 @@ export const updateTenureSchema = z
         },
         {
             message:
-                "startMonth, startYear, endMonth, and endYear are required together when updating tenure period",
-            path: ["startMonth"],
+                "endMonth/endYear must be after or equal to startMonth/startYear",
+            path: ["endMonth"],
         }
     )
     .refine(
@@ -114,16 +95,6 @@ export const updateTenureSchema = z
             message:
                 "endMonth/endYear must be after or equal to startMonth/startYear",
             path: ["endMonth"],
-        }
-    )
-    .refine(
-        (value) => {
-            if (!value.startDate || !value.endDate) return true;
-            return value.endDate > value.startDate;
-        },
-        {
-            message: "endDate must be after startDate",
-            path: ["endDate"],
         }
     );
 

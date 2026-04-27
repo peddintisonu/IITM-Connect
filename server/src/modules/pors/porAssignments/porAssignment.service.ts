@@ -6,10 +6,10 @@ import {
 } from "../../../shared/utils";
 import { CreatePORAssignmentInput } from "../../../validations/porAssignment.validation";
 import Student from "../../students/student.model";
-import PORRole from "../roles/porRole.model";
+import PORRole from "../porRoles/porRole.model";
 import TenureRoleConfig from "../tenureConfig/tenureRoleConfig.model";
 import Tenure from "../tenures/tenure.model";
-import { compareMonthYear } from "../tenures/utils";
+import { compareMonthYear } from "../utils";
 import { porAssignmentErrorMessages } from "./porAssignment.messages";
 import PORAssignment from "./porAssignment.model";
 

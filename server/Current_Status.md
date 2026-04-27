@@ -2,11 +2,13 @@
 
 ## Snapshot
 
-- Date: 27-04-2026
+- Date: 28-04-2026
 - Stack in active use: Express + TypeScript + MongoDB + Passport Google OAuth + Zod + Swagger + React + Vite
+- Branch focus: **POR System Refactor & Org Leadership Autonomy**
 - Current source of truth split:
     - `PRD.md` -> product vision and V1/V2 scope
     - `server/Current_Status.md` -> implementation reality and next execution steps
+    - `server/src/modules/organizations/orgFlows.ts` -> complete flow documentation (single source of truth for org/POR system)
 
 ---
 
@@ -30,11 +32,19 @@
 - `/api/v1/auth`
 - `/api/v1/master-data`
 - `/api/v1/organizations`
-- `/api/v1/pors`
+- `/api/v1/pors` — org-facing, requires onboarding + level 1 access for mutations
 - `/api/v1/students`
 - `/api/v1/social`
+- `/api/v1/admin/pors` — **NEW** — global admin only (bootstrap + exceptions)
 - `/api/v1/health`
 - `/api-docs` and `/api-docs.json`
+
+### NEW: Admin Routes Namespace
+
+All admin-only routes now centralized under `/api/v1/admin/{module}/`:
+
+- `/api/v1/admin/pors/assignments` — manual POR creation (admin override)
+- `/api/v1/admin/pors/bulk-promote-tenure` — TODO: mass-assign for tenure transitions
 
 ---
 
@@ -212,36 +222,145 @@
 
 ---
 
-## 2.7 Organization and POR Foundation
+## 2.7 Organization and POR System (Major Refactor — 28-04-2026)
+
+### KEY ARCHITECTURE CHANGES (This Session)
+
+**1. Flat Role Structure** ✅
+
+- Removed `parentRoleId` from OrganizationRequest and TenureRoleConfig models
+- Role hierarchy is now represented by `level` field only (1 = top, 2 = core, 3+ = members)
+- Simplifies role assignment logic and prevents edge cases with broken parent references
+- `getTenureRoleConfigTree()` endpoint removed (no longer needed)
+
+**2. Organization Leadership Autonomy** ✅
+
+- **Level 1 POR holders can now manage their own org** without global admin
+- Tenure create/update: `requireOrgTopLevelFromBody` middleware checks level 1 status from org context
+- Tenure role config mutations: `requireTenureTopLevel` middleware enforces level 1 in target tenure
+- Routes at `/api/v1/pors/` (not admin namespace) — org leaders are legitimate users
+- Admin routes moved to `/api/v1/admin/pors/assignments` (bootstrap + exceptions only)
+
+**3. POR Claim System** ✅
+
+- `POST /pors/claims` — students submit claims
+- `GET /pors/claims/mine` — view own claims
+- `GET /pors/claims/org/:orgId?tenureId=...` — leaders review pending (tenure-scoped)
+- `POST /pors/claims/:id/approve` — leader approves → auto-creates assignment
+- `POST /pors/claims/:id/reject` — leader rejects with reason (claim preserved for audit)
+- `DELETE /pors/claims/:id` — student cancels pending claim
+- Complete with chain-of-trust enforcement (level-based approval rights)
+
+**4. Role-Level Permissions** ✅
+
+- `permissions` field added to TenureRoleConfig
+- Default permissions seeded by level: level 1 has all, level 2 partial, level 3+ none
+- 7 permissions: `canPost`, `canCreateEvents`, `canEditOrgProfile`, `canManageRoles`, `canManageTenure`, `canApproveMembers`, `canVerifyPORBelow`
+- `checkOrgPermission()` middleware reusable for any protected org action
+- Not yet wired into route middleware (org routes still to be created)
+
+**5. Mid-Tenure Operations** 📋 (TODO)
+
+- `PATCH /pors/assignments/:id/end` — deactivate role mid-tenure
+- `PATCH /pors/assignments/:id/transfer` — move to different role in same tenure
+- `POST /pors/assignments/renew-for-tenure` — promote to next tenure (convenience wrapper)
+- `POST /api/v1/admin/pors/bulk-promote-tenure` — mass assignment for tenure transitions
 
 ### Completed
 
-- Organization request APIs are implemented:
-    - `POST /api/v1/organizations/requests`
-    - `POST /api/v1/organizations/requests/:requestId/approve`
-    - `POST /api/v1/organizations/requests/:requestId/reject`
-- Organization request approval flow is transactional and materializes:
-    - organization
-    - first tenure
-    - first tenure role configs
-    - creator initial POR assignment
-- Optional parent-top-POR approval step support is implemented in request model and approval-step orchestration.
-- POR tenure APIs are implemented:
-    - list/get/create/update/status transition
-- Tenure role config APIs are implemented:
-    - list/tree/create/bulk-upsert/update/status/delete/clone
-- POR assignment create API is implemented with role-capacity and duplicate-active guards.
-- Tenure period model now supports month/year contract (`startMonth`, `startYear`, `endMonth`, `endYear`) while preserving derived date fields for overlap checks.
-- Assignment payload now supports optional partial period bounds inside tenure (`assignmentStartMonth`, `assignmentStartYear`, `assignmentEndMonth`, `assignmentEndYear`).
-- Consolidated module-level Swagger docs are in place:
-    - organizations: `organization.swagger.ts`
-    - pors: `pors.swagger.ts`
+- Organization request APIs:
+    - `POST /api/v1/organizations/requests` — submit org creation request
+    - `POST /api/v1/organizations/requests/:id/approve` — admin approves
+    - `POST /api/v1/organizations/requests/:id/reject` — admin rejects
+- Organization request approval flow with transactional materializa (org + tenure + configs + first assignment)
+- Optional parent-top-POR approval step for nested org requests
+- Tenure CRUD with month/year contract and status transitions: `planned` → `active` → `grace` → `closed` → `archived`
+- Tenure role config CRUD with flat structure, bulk operations, and clone-from functionality
+- POR claim system with full submission → review → approval/rejection flow
+- Global permissions system: level-based defaults + per-role overrides
+- Org permission middleware with tenure-scoping
 
-### Current Status
+### SCHEMA UPDATES
 
-- Core org request + POR tenure/config/assignment foundation is live.
-- Governance duty enforcement middleware and org action authorization matrix are not yet wired into runtime route protection.
-- POR lifecycle beyond create-assignment (nomination/approval/revocation/handover packet flows) is pending.
+```
+OrganizationRequest.firstTenureRoleConfigs[]
+  ❌ removed: parentRoleId
+  ✅ present: level, sortOrder, maxHolders, canBeVacant, (permissions if provided)
+
+TenureRoleConfig
+  ❌ removed: parentRoleId (no more tree structure)
+  ✅ present: level (ordering), permissions{}, isActiveInTenure
+  ✅ indices: (level, sortOrder) for fast filtering
+
+TenureRoleConfig.permissions
+  {
+    canPost: boolean,
+    canCreateEvents: boolean,
+    canEditOrgProfile: boolean,
+    canManageRoles: boolean,
+    canManageTenure: boolean,
+    canApproveMembers: boolean,
+    canVerifyPORBelow: boolean
+  }
+
+PORClaim
+  ✅ NEW model tracking pending claims before assignment
+  Status: pending | approved | rejected | cancelled (never deleted, audit trail)
+  Unique index: (claimedBy, tenureRoleConfigId, status=pending)
+    → prevents duplicate pending claims for same role
+
+PORAssignment
+  ✅ new: releasedAt (when deactivated mid-tenure)
+  ✅ enhanced: chain-of-trust enforced at approve time
+  ✅ invariant: one active per (student, org, tenure)
+```
+
+### Routes Added This Session
+
+**Org-Facing (Leadership, `/api/v1/pors/`)**
+
+- `POST /pors/claims` — student submits claim
+- `DELETE /pors/claims/:id` — student cancels claim
+- `GET /pors/claims/mine` — student views own claims
+- `GET /pors/claims/org/:orgId?tenureId=` — leaders view pending
+- `POST /pors/claims/:id/approve` — leader approves
+- `POST /pors/claims/:id/reject` — leader rejects
+- `POST /pors/tenures` — **NOW level 1 only** (was admin only)
+- `PATCH /pors/tenures/:id` — **NOW level 1 only** (was admin only)
+- `PATCH /pors/tenures/:id/status` — **NOW level 1 only** (was admin only)
+- All tenure role config mutations — **NOW level 1 only** (was admin only)
+
+**Admin-Only (`/api/v1/admin/pors/`)**
+
+- `POST /admin/pors/assignments` — manual creation (bootstrap/fallback)
+
+### Middleware Created
+
+```typescript
+requireOrgTopLevelFromBody; // Checks req.body.orgId for level 1
+requireTenureTopLevel; // Checks req.params.tenureId for level 1 in that tenure
+checkOrgPermission(); // Generic permission check middleware factory
+```
+
+### Current Limitations & TODOs
+
+- **Not yet wired**: `checkOrgPermission()` needs to be placed on org-facing routes (posts, events, profile, etc.)
+- **Not yet built**: Mid-tenure operations (end, transfer, renew)
+- **Not yet built**: Handover notes system
+- **Not yet built**: Org profile endpoints (get by slug, update, upload avatar/cover)
+- **Validation pending**: Cross-field validation for `assignmentStart/EndMonth+Year` pairs
+- **Validation pending**: `isCustomRole` for custom-named roles in org requests
+- **Pending**: Cron jobs for tenure transition (30-day warning) and activation (startDate firing)
+- **Pending**: Seeds for permanent orgs (Saarang, Shaastra, CFI, hostels, depts, SEC, MMCC)
+
+### Key Design Decisions
+
+1. **No global role hierarchy** — Roles are flat, hierarchy is built per-tenure via level assignment
+2. **Org leaders manage their structure** — No admin bottleneck; level 1 creates tenures and configures roles
+3. **Single active POR per org+tenure** — Enforced at model level, prevents complexity
+4. **Claims are auditable forever** — Never deleted; status tracks: pending, approved, rejected, cancelled
+5. **Permission defaults by level** — Level 1 trusts with all; level 2 partial; level 3+ public-read-only
+6. **Mid-tenure changes stay local** — Tenure end = clean slate for next cycle; no automatic carry-forward
 
 ---
 

@@ -333,37 +333,68 @@ Flow blueprint:
 Objective:
 
 - Track positions of responsibility with transparent assignment, approval, tenure linkage, and archival history.
+- Empower organization leaders to manage POR lifecycle without admin bottleneck.
+- Preserve audit trail for all claim actions and role transitions.
 
 What app should do:
 
-1. Nominate candidates for POR slots.
-2. Run approval chain per org policy.
-3. Activate POR within valid tenure.
-4. Complete or revoke POR with reason and auditability.
-5. Support hierarchy-aware approvals where upper roles approve lower roles.
-6. Allow highest role to approve any role in org, including parallel-level roles.
+1. **Student-initiated claims** — Students submit claims for roles they want.
+2. **Leader-approved workflow** — Level 1 leaders (org top) review and approve/reject claims.
+3. **Automatic assignment** — Approved claims automatically create POR assignments.
+4. **Role capacity enforcement** — Claims are rejected if role is at capacity.
+5. **Single active per org+tenure** — Invariant: one active POR per student per org per tenure.
+6. **Mid-tenure operations**:
+    - End assignment: Deactivate role before tenure ends
+    - Transfer role: Move to different role in same tenure
+    - Promote to next tenure: Carry forward or upgrade to new role in next tenure
+7. **Level-based permissions** — Roles have configured permission sets (post, events, manage tenure, etc.)
+8. **Chain-of-trust approval** — Level 1 can approve anyone; level 2 can approve peer/lower-level claims.
 
 Suggested implementation:
 
-1. POR records tied to role template version and tenure.
-2. Append-only lifecycle events.
-3. Explicit approval graph by role level.
-4. Separate role labels from duty permissions to avoid policy ambiguity.
-5. Keep role catalog stable while per-tenure activation/hierarchy changes remain flexible.
-6. Keep assignment period fields explicit to support mid-tenure join/leave scenarios.
+1. **PORClaim model** — Audit-friendly (never deleted, status-based lifecycle):
+    - Fields: claimedBy, tenureRoleConfigId, status (pending|approved|rejected|cancelled), reviewedBy, reviewedAt, reason
+    - Unique index: (claimedBy, tenureRoleConfigId, status=pending) prevents duplicate pending claims
+2. **PORAssignment model** — Activation outcome:
+    - Linked to approved claim, reference to tenure and role config
+    - Fields: studentId, tenureRoleConfigId, tenureId, startDate, endDate, isActive, createdAt, releasedAt
+    - Single active per org+tenure per student enforced at service level
+
+3. **Flat role structure** — Level-based (1-10 scale) instead of parent-child:
+    - Level 1: org leader (full permissions)
+    - Level 2: core ops (limited permissions)
+    - Level 3+: members/public (no permissions)
+
+4. **Permission model**:
+    - 7 configurable duties per role: canPost, canCreateEvents, canEditOrgProfile, canManageRoles, canManageTenure, canApproveMembers, canVerifyPORBelow
+    - Defaults by level, overridable per role per tenure
+
+5. **Approval logic**:
+    - Only level 1/2 can review claims
+    - Approver must have level >= claim role level (chain of trust)
+    - System-enforced capacity and duplicate checks before approval
+
+6. **Org leader autonomy**:
+    - Level 1 has full administrative access to tenure and role config creation/updates
+    - No admin needed for org operations
+    - Admin role limited to bootstrap and exceptions
 
 UX expectations:
 
-1. Nomination workflow UI.
-2. Approval queue UI for authorized reviewers.
-3. POR timeline with status badges and event history.
-4. Explainable approval-path display (who can approve whom).
+1. **For students**: Claim submission form with role selection and confirmation.
+2. **For leaders**:
+    - Pending claims queue with auto-refresh
+    - Approve/reject modal with reason entry
+    - Team roster showing active POR holders and role details
+3. **Mid-tenure dashboard**: End, transfer, or promote actions with confirmation.
+4. **Claim history**: View own claims and their status (pending, approved, rejected).
 
 Risks:
 
-1. Multiple active holders violating policy constraints.
-2. Missing audit context on revocation.
-3. Role title interpreted as permission without duty map.
+1. Capacity not re-checked at approval time.
+2. Duplicate active roles created by concurrent approvals.
+3. Students claiming before org tenure exists (cascade check needed).
+4. Role permissions not enforced on actual operations (wire permissions into routes).
 
 ---
 
@@ -372,32 +403,62 @@ Risks:
 Objective:
 
 - Ensure continuity in governance and operations across role transitions.
+- Support clean separation between tenure cycles (each tenure is independent).
+- Enable mid-tenure adjustments (end, transfer, promote).
 
 What app should do:
 
-1. Define tenure windows for roles and org cycles.
-2. Trigger reminders before tenure end.
-3. Collect and store handover notes/checklists.
-4. Ensure transition from outgoing to incoming holder is traceable.
-5. Allow each tenure to have its own role activation and hierarchy shape.
-6. Support tenure-to-tenure structural changes without mutating historical records.
+1. Define tenure windows for roles and org cycles (month/year boundaries).
+2. Create/update/close tenure with status transitions: planned → active → grace → closed → archived.
+3. Support role structure per tenure (same role name can have different levels across tenures).
+4. Trigger reminders before tenure end (TODO: cron job).
+5. Collect and store handover notes/checklists (TODO: handover packet).
+6. Ensure transition from outgoing to incoming holder is traceable.
+7. **NEW**: Allow mid-tenure role changes:
+    - End assignment: Student or level 1 ends assignment before tenure ends
+    - Transfer: Level 1 moves student to different role in same tenure
+    - Promote: Carry forward or upgrade to new role in next tenure
 
 Suggested implementation:
 
-1. Tenure entity separated from POR entity.
-2. Handover packet schema with structured sections.
-3. State machine for pre-close, close, and archive milestones.
-4. Tenure role config as one row per role per tenure for update isolation and audit clarity.
-5. Keep historical tenure configurations immutable once archived.
-6. Use month/year tenure windows as source-of-truth API contract and derive date boundaries for overlap checks.
-7. Allow assignment sub-windows that are bounded by the selected tenure period.
+1. **Tenure entity** — Separated from POR entity with explicit state:
+    - Fields: orgId, name, startMonth, startYear, endMonth, endYear, (derived: startDate, endDate), status, cycleYear (academic year if applicable)
+    - Status machine: planned → active → grace → closed → archived
+    - Uniqueness: one active tenure per org at any time (soft constraint, allows grace overlap)
+
+2. **Tenure role configuration** — One row per role per tenure:
+    - Fields: tenureId, roleId, level (1-10), maxHolders, canBeVacant, permissions{}, isActiveInTenure, sortOrder
+    - Immutable once tenure is closed (audit trail)
+    - Update isolation: changes don't affect other tenures
+
+3. **Handover packet** — NEW model (TODO: implement):
+    - Schema: assignmentId (outgoing), notes (structured sections), checklist (key tasks), warnings
+    - Attach to next assignment when same student carries forward
+
+4. **Mid-tenure operations**:
+    - End: `PATCH /pors/assignments/:id/end` — deactivate with optional reason
+    - Transfer: `PATCH /pors/assignments/:id/transfer` — move to different role with reason
+    - Renew: `POST /pors/assignments/renew-for-tenure` — pre-assign to next tenure
+
+5. **Month/year tenure windows**:
+    - API contract uses month/year (e.g., {startMonth: 4, startYear: 2026})
+    - Derived dates for overlap checks (e.g., startDate = April 1, 2026)
+    - Partial assignment windows bounded by tenure: [tenureStart, tenureEnd]
 
 UX expectations:
 
 1. Tenure dashboard with countdown and risk markers.
-2. Handover checklist view with completion indicators.
-3. Historical handover archive access for next holders.
+2. Handover checklist view with completion indicators (TODO).
+3. Historical handover archive access for next holders (TODO).
 4. Current team vs past teams views derived from active/closed tenure assignments.
+5. Mid-tenure actions: button to end role, transfer to new role, or promote to next tenure.
+
+Risks:
+
+1. Tenure status not enforced (e.g., can add assignments to closed tenure).
+2. Hardcoding end dates instead of deriving from month/year (brittle to calendar changes).
+3. No cron jobs for tenure lifecycle (30-day warnings, auto-activation).
+4. Orphaned assignments if tenure deleted (delete tenure records only after archival).
 5. Partial-term visual markers for assignments that do not span full tenure window.
 
 Risks:

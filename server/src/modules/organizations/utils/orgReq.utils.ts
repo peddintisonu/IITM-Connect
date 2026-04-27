@@ -13,7 +13,6 @@ export const getPendingApprovalStepIndex = (organizationRequest: {
 export const ensureCreatorRequestedRoleConfig = (
     roleConfigs: {
         roleId: mongoose.Types.ObjectId;
-        parentRoleId?: mongoose.Types.ObjectId;
         level: number;
         sortOrder: number;
         maxHolders: number;
@@ -69,7 +68,9 @@ export const buildApprovedTenurePayload = (
 ) => ({
     orgId,
     name: organizationRequest.firstTenure.name,
-    cycleYear: organizationRequest.firstTenure.cycleYear,
+    cycleYear:
+        organizationRequest.firstTenure.cycleYear ??
+        organizationRequest.firstTenure.startDate.getUTCFullYear(),
     startDate: organizationRequest.firstTenure.startDate,
     endDate: organizationRequest.firstTenure.endDate,
     createdBy: requestedBy,
@@ -85,7 +86,6 @@ export const buildApprovedTenureRoleConfigPayloads = (
     const roleConfigs = ensureCreatorRequestedRoleConfig(
         organizationRequest.firstTenureRoleConfigs.map((config) => ({
             roleId: config.roleId,
-            parentRoleId: config.parentRoleId,
             level: config.level,
             sortOrder: config.sortOrder,
             maxHolders: config.maxHolders,
@@ -98,7 +98,6 @@ export const buildApprovedTenureRoleConfigPayloads = (
         tenureId,
         orgId,
         roleId: config.roleId,
-        parentRoleId: config.parentRoleId ?? null,
         level: config.level,
         sortOrder: config.sortOrder,
         maxHolders: config.maxHolders,
@@ -149,3 +148,12 @@ export const buildRejectedOrganizationRequestMetadata = (
     reviewedAt: new Date(),
     reviewRemarks: remarks,
 });
+
+export const generateSlug = (name: string): string => {
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, "") // Remove non-word chars (except spaces/hyphens)
+        .replace(/[\s_-]+/g, "-") // Replace spaces and underscores with hyphens
+        .replace(/^-+|-+$/g, ""); // Trim leading/trailing hyphens
+};

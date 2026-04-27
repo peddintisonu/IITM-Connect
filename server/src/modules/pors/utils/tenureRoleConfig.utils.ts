@@ -1,5 +1,3 @@
-// server/src/modules/pors/tenureConfig/tenureConfig.utils.ts
-
 import mongoose from "mongoose";
 
 import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
@@ -7,12 +5,14 @@ import { ApiError, toObjectId } from "../../../shared/utils";
 import { TENURE_STATUS } from "../constants/tenure.constants";
 import PORAssignment from "../porAssignments/porAssignment.model";
 import PORRole from "../porRoles/porRole.model";
+import TenureRoleConfig, {
+    type ITenureRoleConfig,
+} from "../tenureConfig/tenureRoleConfig.model";
 import {
     tenureConfigErrorMessages,
     tenureErrorMessages,
 } from "../tenures/tenure.messages";
 import Tenure, { type ITenure } from "../tenures/tenure.model";
-import TenureRoleConfig from "./tenureRoleConfig.model";
 
 export const ensureTenureExistsForConfig = async (tenureId: string) => {
     const tenure = await Tenure.findById(tenureId);
@@ -164,4 +164,5 @@ export const parseBulkConfigUpdate = (
     if (item.changeReason !== undefined) patch.changeReason = item.changeReason;
 
     return patch;
+};
 };

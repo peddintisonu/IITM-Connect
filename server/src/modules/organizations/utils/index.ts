@@ -8,4 +8,5 @@ export {
     ensureCreatorRequestedRoleConfig,
     getPendingApprovalStepIndex,
     isRoleApplicableForCategory,
+    generateSlug,
 } from "./orgReq.utils";

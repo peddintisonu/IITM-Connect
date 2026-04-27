@@ -20,7 +20,6 @@ import {
     cloneTenureRoleConfigs,
     createTenureRoleConfig,
     deleteTenureRoleConfig,
-    getTenureRoleConfigTree,
     listTenureRoleConfigs,
     updateTenureRoleConfig,
     updateTenureRoleConfigStatus,
@@ -89,21 +88,6 @@ export const listTenureRoleConfigsController = asyncHandler(
                 HTTP_STATUS.OK,
                 configs,
                 tenureConfigRouteMessages.configsFetched
-            )
-        );
-    }
-);
-
-export const getTenureRoleConfigTreeController = asyncHandler(
-    async (req: Request, res: Response) => {
-        const tenureId = getSingleParam(req.params.tenureId);
-        const tree = await getTenureRoleConfigTree(tenureId);
-
-        res.status(HTTP_STATUS.OK).json(
-            new ApiResponse(
-                HTTP_STATUS.OK,
-                tree,
-                tenureConfigRouteMessages.configTreeFetched
             )
         );
     }

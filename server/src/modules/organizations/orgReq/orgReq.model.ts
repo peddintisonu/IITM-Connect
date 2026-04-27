@@ -26,16 +26,10 @@ export interface IOrganizationApprovalStep {
 
 export interface IOrganizationRequestRoleConfigInput {
     roleId: mongoose.Types.ObjectId;
-    parentRoleId?: mongoose.Types.ObjectId;
     level: number;
     sortOrder: number;
     maxHolders: number;
     canBeVacant: boolean;
-}
-
-export interface IOrganizationRequestLink {
-    label: string;
-    url: string;
 }
 
 export interface IOrganizationRequest extends mongoose.Document {
@@ -43,18 +37,8 @@ export interface IOrganizationRequest extends mongoose.Document {
     status: OrganizationRequestStatus;
     organization: {
         name: string;
-        shortName?: string;
-        acronym?: string;
         slug: string;
         category: OrganizationCategory;
-        description?: string;
-        avatar?: string;
-        coverImage?: string;
-        avatarPublicId?: string;
-        coverImagePublicId?: string;
-        links: IOrganizationRequestLink[];
-        contactEmail?: string;
-        website?: string;
         establishedYear?: number;
         parentOrgId?: mongoose.Types.ObjectId;
         isPermanent: boolean;
@@ -108,11 +92,6 @@ const organizationRequestRoleConfigInputSchema =
                 ref: "PORRole",
                 required: true,
             },
-            parentRoleId: {
-                type: Schema.Types.ObjectId,
-                ref: "PORRole",
-                default: null,
-            },
             level: { type: Number, default: 0, required: true },
             sortOrder: { type: Number, default: 0, required: true },
             maxHolders: { type: Number, default: 1, required: true },
@@ -120,14 +99,6 @@ const organizationRequestRoleConfigInputSchema =
         },
         { _id: false }
     );
-
-const organizationRequestLinkSchema = new Schema<IOrganizationRequestLink>(
-    {
-        label: { type: String, required: true, trim: true },
-        url: { type: String, required: true, trim: true },
-    },
-    { _id: false }
-);
 
 const organizationRequestSchema = new Schema<IOrganizationRequest>(
     {
@@ -144,8 +115,6 @@ const organizationRequestSchema = new Schema<IOrganizationRequest>(
         },
         organization: {
             name: { type: String, required: true, trim: true },
-            shortName: { type: String, trim: true },
-            acronym: { type: String, trim: true, uppercase: true },
             slug: {
                 type: String,
                 required: true,
@@ -157,14 +126,6 @@ const organizationRequestSchema = new Schema<IOrganizationRequest>(
                 enum: ORGANIZATION_CATEGORY_ENUM,
                 required: true,
             },
-            description: { type: String, trim: true },
-            avatar: { type: String, trim: true },
-            coverImage: { type: String, trim: true },
-            avatarPublicId: { type: String, trim: true },
-            coverImagePublicId: { type: String, trim: true },
-            links: { type: [organizationRequestLinkSchema], default: [] },
-            contactEmail: { type: String, trim: true, lowercase: true },
-            website: { type: String, trim: true },
             establishedYear: { type: Number },
             parentOrgId: {
                 type: Schema.Types.ObjectId,
@@ -219,6 +180,7 @@ const organizationRequestSchema = new Schema<IOrganizationRequest>(
     { timestamps: true }
 );
 
+// Middleware to push approval steps
 organizationRequestSchema.pre("validate", function () {
     if (this.requiresParentTopPorApproval) {
         const hasParentTopPorStep = this.approvalSteps.some(
@@ -235,6 +197,7 @@ organizationRequestSchema.pre("validate", function () {
     }
 });
 
+// Indexes for performance
 organizationRequestSchema.index({ status: 1, createdAt: -1, _id: 1 });
 organizationRequestSchema.index({ requestedBy: 1, createdAt: -1, _id: 1 });
 organizationRequestSchema.index({ "organization.slug": 1 }, { unique: true });

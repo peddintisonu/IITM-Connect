@@ -43,9 +43,8 @@
 //
 // Step 3 — Role Structure
 //   Student picks roles from PORRole list filtered by org category
-//   For each role: set parentRoleId, level, sortOrder, maxHolders, canBeVacant
+//   For each role: set level, sortOrder, maxHolders, canBeVacant
 //   If role not in list: type custom name, flagged as isCustomRole: true for admin review
-//   Hierarchy is almost always a straight vertical chain — siblings are rare
 //   This becomes firstTenureRoleConfigs[] in OrganizationRequest
 //
 // Step 4 — Your Role
@@ -123,11 +122,17 @@
 //   Approver's own PORAssignment must be active — cannot verify if own POR is unverified
 //         ↓
 //   Approver approves →
+//     Re-check capacity and duplicate-active constraints at approval time
 //     PORAssignment.create() with isActive: true, assignedBy: approver's studentId
+//     Claim document status set to "approved" (preserved for audit history)
 //     Student notified — badge appears on profile
 //   Approver rejects →
-//     Claim document deleted
+//     Claim document status set to "rejected" (preserved for audit history — NOT deleted)
 //     Student notified with rejection reason
+//
+// NOTE: Claim documents are NEVER deleted. They are kept with status "rejected" or
+//       "cancelled" for audit history. The design doc previously said "Claim document
+//       deleted" on rejection — that was incorrect and has been updated here.
 //
 // IMPORTANT RULE — Chain of Trust:
 //   A POR holder can only verify roles at a level BELOW their own level
@@ -135,13 +140,18 @@
 //   Level 2 can verify level 3, 4... but NOT level 1
 //   Nobody can self-verify
 //
+// IMPORTANT RULE — Tenure Scoping:
+//   Approver must have an active POR in the SAME tenure as the claim
+//   A holder from a previous tenure (not yet cleaned up) cannot approve current tenure claims
+//
 // FILES INVOLVED:
 //   pors/models/assignment.model.ts
 //   tenures/models/tenureRoleConfig.model.ts
-//   pors/models/porClaim.model.ts        (to be created — tracks pending claims)
-//   pors/services/porClaim.service.ts    (to be created)
-//   pors/controllers/porClaim.controller.ts (to be created)
-//   pors/routes/porClaim.routes.ts       (to be created)
+//   pors/porClaims/porClaim.model.ts        ✅ DONE
+//   pors/porClaims/porClaim.service.ts      ✅ DONE
+//   pors/porClaims/porClaim.controller.ts   ✅ DONE
+//   pors/porClaims/porClaim.messages.ts     ✅ DONE
+//   pors/pors.routes.ts                     ✅ DONE (claim routes wired)
 //
 // -----------------------------------------------------------------------------
 
@@ -203,7 +213,7 @@
 //   → Does this org even have this feature?
 //   → Set at org creation based on category, admin can override
 //
-// Role Permissions (on TenureRoleConfig model — to be added):
+// Role Permissions (on TenureRoleConfig model):
 //   canPost, canApproveMembers, canManageRoles,
 //   canCreateEvents, canVerifyPORBelow, canEditOrgProfile, canManageTenure
 //   → What can the holder of this role actually do?
@@ -227,11 +237,239 @@
 //   If true → allow
 //
 // FILES INVOLVED:
-//   tenures/models/tenureRoleConfig.model.ts  (add permissions field)
-//   tenures/constants/permissions.constants.ts (to be created)
-//   shared/middleware/checkOrgPermission.ts   (to be created — reusable middleware)
+//   tenures/models/tenureRoleConfig.model.ts  ✅ DONE (permissions field added)
+//   pors/constants/permissions.constants.ts   ✅ DONE
+//   shared/middleware/orgPermission.middleware.ts ✅ DONE (checkOrgPermission)
+//
+// NOTE: orgPermission.middleware.ts exists but is not yet wired into org-facing
+//       routes (e.g. post creation, org profile edit). This is the next wiring step.
+//
+// IMPORTANT: Only level 1 POR holders can manage tenures and role configurations
+//   — This ensures org leaders have autonomy without global admin intervention
+//   — requireOrgTopLevelFromBody middleware checks this for tenure creation
+//   — requireTenureTopLevel middleware checks this for tenure edits and role-config operations
+//   — Routes at /api/v1/pors/ (not /api/v1/admin/pors)
+//
+// GLOBAL ADMIN ROUTES:
+//   Global admin operations moved to /api/v1/admin/pors/assignments
+//   This is for bootstrap and exception handling only:
+//   — First leader assignment when no approvers exist (org creation edge case)
+//   — Manual assignment correction (rare)
+//   — Not for normal workflow (claims → approve → assign is the normal path)
+//
+// AUTHENTICATION FLOW:
+//   1. protectRoute — user must be authenticated
+//   2. requireOnboardingComplete — user must be onboarded student
+//   3. requireOrgTopLevelFromBody or requireTenureTopLevel — user must be level 1 in that org
 //
 // -----------------------------------------------------------------------------
+
+// SECTION 5a — MID-TENURE POR CHANGES (End, Transfer, Promotion)
+// =============================================================================
+//
+// These flows handle changes to POR assignments within a tenure (not at tenure boundary)
+//
+// SCENARIO 1 — END ASSIGNMENT (Resignation / Removal)
+// ─────────────────────────────────────────────────────
+//
+// TRIGGER: Level 1 leader or student themselves ends their assignment
+//
+// ENDPOINT: PATCH /pors/assignments/:assignmentId/end
+//
+// PAYLOAD:
+//   {
+//     "endMonth": 3,              // optional, Gregorian month of resignation
+//     "endYear": 2026,            // optional, Gregorian year
+//     "reason": "Resigned from position"
+//   }
+//
+// WHO CAN END:
+//   — Student can end their own assignment (always)
+//   — Level 1 leader can end anyone's assignment in same org+tenure
+//   — Super admin can end any assignment (fallback)
+//
+// FLOW:
+//   Validate the assignment exists and belongs to the org
+//         ↓
+//   Check authorization (self OR level 1 in same org+tenure)
+//         ↓
+//   Update assignment: isActive = false, releasedAt = now
+//   If endMonth/Year provided: set assignmentEndMonth, assignmentEndYear
+//   Store reason in notes field
+//         ↓
+//   If this was the only level 1 holder:
+//     Warn org leaders — no one can approve new claims until replacement arrives
+//   If claims pending for this role:
+//     Mark them as "cannot-approve" (approver no longer holds role)
+//         ↓
+//   Student profile updated — role badge removed immediately
+//
+// POST-END STATE:
+//   — PORAssignment.isActive = false
+//   — Pending claims for this person cannot be approved by them
+//   — This person can still hold other roles in same org
+//   — On next tenure: this assignment is NOT carried forward (clean slate)
+//   — Handover notes from releasedAt available to org leaders
+//
+// FILES INVOLVED:
+//   pors/porAssignments/porAssignment.service.ts — add endPORAssignment()
+//   pors/porAssignments/porAssignment.controller.ts — add endAssignmentController()
+//   pors/pors.routes.ts — add PATCH /assignments/:id/end
+//
+// SWAGGER:
+//   PATCH /pors/assignments/:assignmentId/end
+//   Query param: tenureId (optional, for scope verification)
+//
+// ─────────────────────────────────────────────────────
+// SCENARIO 2 — TRANSFER ROLE (within same tenure)
+// ─────────────────────────────────────────────────────
+//
+// TRIGGER: Level 1 leader moves someone to a different role in same tenure
+//          (e.g. President → Treasurer, Core member 1 → Core member 2)
+//
+// ENDPOINT: PATCH /pors/assignments/:assignmentId/transfer
+//
+// PAYLOAD:
+//   {
+//     "newTenureRoleConfigId": "...",    // new role config in same org+tenure
+//     "reason": "Position restructure"
+//   }
+//
+// PRECONDITIONS:
+//   — Both old and new configs must belong to same org+tenure
+//   — New role must not be already at maxHolders capacity
+//   — Student must not already hold the new role
+//   — Cannot transfer to roles at much higher level (e.g. member → president needs review)
+//
+// FLOW:
+//   Validate assignment exists, TenureRoleConfigs valid
+//         ↓
+//   Check authorization (level 1 in same org+tenure only)
+//         ↓
+//   Check: student not already in new role config
+//   Check: new role not at capacity
+//         ↓
+//   ATOMIC TRANSACTION:
+//     1. Update old assignment: tenureRoleConfigId = newRoleId, roleId = newRoleId
+//     2. Update permissions based on new level
+//     3. Store transfer reason in notes
+//         ↓
+//   Student profile updated — old role badge removed, new one appears
+//
+// POST-TRANSFER STATE:
+//   — Student still has ONE active assignment in this org+tenure (not two)
+//   — Their permissions changed according to new role's level
+//   — Existing claims for their old role remain (reviewed under old role context)
+//   — If they had pending claims as old role, they're unchanged but can't approve
+//
+// FILES INVOLVED:
+//   pors/porAssignments/porAssignment.service.ts — add transferAssignment()
+//   pors/porAssignments/porAssignment.controller.ts — add transferAssignmentController()
+//   pors/pors.routes.ts — add PATCH /assignments/:id/transfer
+//
+// NOTE: This is DIFFERENT from claiming a new role and keeping both:
+//       Transfer → ONE active role changes to another (1:1 swap)
+//       Claim → request process with approvals for a SECOND role (if allowed)
+//       System design: Only ONE active role per org per tenure (enforced in model)
+//
+// ─────────────────────────────────────────────────────
+// SCENARIO 3 — PROMOTION TO NEXT TENURE (handover)
+// ─────────────────────────────────────────────────────
+//
+// TRIGGER: New tenure begins, automatic or manual promotion of leaders
+//
+// APPROACHES (all valid — use case dependent):
+//
+// OPTION A: AUTOMATIC CLAIM RENEWAL (Student-initiated)
+//   Student submits claim for same or higher role in new tenure
+//         ↓
+//   Level 1 holder of NEW tenure approves
+//         ↓
+//   New PORAssignment created in new tenure
+//   This is handled by normal claim flow (no new endpoint needed)
+//
+// OPTION B: DIRECT TENURE TRANSFER (Admin convenience)
+//   ENDPOINT: POST /pors/assignments/renew-for-tenure
+//   Used when org leader wants to directly carry forward roles
+//
+//   PAYLOAD:
+//     {
+//       "previousAssignmentId": "...",
+//       "newTenureId": "...",
+//       "sameRoleId": true,  // or provide newRoleIdIfPromotion
+//       "reason": "Promotion from president to advisor"
+//     }
+//
+//   FLOW:
+//     Verify:
+//       — Old assignment is in an inactive tenure (just ended)
+//       — New tenure exists in same org and is "planned" or "active"
+//       — New tenure's roleConfig for this role exists
+//         ↓
+//     Create new PORAssignment in new tenure
+//     Old assignment remains (audit trail)
+//     New assignment linked to old (handoverContext: "promoted")
+//         ↓
+//     Student notified of new role in new tenure
+//
+// OPTION C: BULK PROMOTION (Admin mass-assignment)
+//   ENDPOINT: POST /api/v1/admin/pors/bulk-promote-tenure
+//   Only super admin can use this
+//
+//   PAYLOAD:
+//     {
+//       "fromTenureId": "...",
+//       "toTenureId": "...",
+//       "promotions": [
+//         {
+//           "studentId": "...",
+//           "fromTenureRoleConfigId": "...",
+//           "toTenureRoleConfigId": "...",
+//           "reason": "Auto-renewed"
+//         }
+//       ]
+//     }
+//
+//   FLOW:
+//     For each promotion:
+//       — Create new PORAssignment in toTenure
+//       — Link to previous (handoverContext)
+//       — Mark old as context="completed_tenure"
+//         ↓
+//     Batch notify all students of their roles in new tenure
+//
+// RECOMMENDED WORKFLOW:
+//   1. When new tenure created (by level 1): status = "planned"
+//   2. Old tenure ends (cron job): status = "completed", old assignments deactivated
+//   3. Student/leader submits claim for new tenure using normal flow
+//   4. Approve in new tenure = direct assignment (no need for Option B/C)
+//   5. If exception: use Option B (direct transfer) or Option C (bulk)
+//
+// FILES INVOLVED:
+//   pors/porAssignments/porAssignment.service.ts — add renewForTenure(), bulkPromote()
+//   pors/porAssignments/porAssignment.controller.ts — add renewController(), bulkPromoteController()
+//   pors/pors.routes.ts — add POST /assignments/renew-for-tenure
+//   pors/pors.admin.routes.ts — add POST /bulk-promote-tenure
+//
+// HANDOVER NOTES:
+//   When assignment is released (end or transfer):
+//     Outgoing holder fills structured notes
+//     Notes stored in PORAssignment.handoverNotes (text) or separate collection
+//     Incoming holder sees notes when they start new tenure
+//     For future: structured handover checklist (keys, documents, records, etc.)
+//
+// ────────────────────────────────────────────────────
+// KEY INVARIANTS FOR ALL MID-TENURE CHANGES:
+// ────────────────────────────────────────────────────
+//
+//  1. ONE active POR per org+tenure per student (invariant enforced in model)
+//  2. Level 1 leaders can end/transfer anyone's role in their org
+//  3. All changes are time-scoped to tenure (tenure change = fresh slate)
+//  4. Audit trail: never delete assignments, only deactivate with reason
+//  5. Claims pending → must resolve (re-assign, cancel) when holder changes
+//
+// ============================================================================
+//
 
 // -----------------------------------------------------------------------------
 // SECTION 6 — ORG PROFILE MANAGEMENT
@@ -264,7 +502,7 @@
 //   organizations/services/org.service.ts      (to be created)
 //   organizations/controllers/org.controller.ts (to be created)
 //   organizations/routes/org.routes.ts          (to be created)
-//   shared/middleware/checkOrgPermission.ts     (to be created)
+//   shared/middleware/orgPermission.middleware.ts ✅ DONE
 //
 // -----------------------------------------------------------------------------
 
@@ -299,9 +537,7 @@
 // SECTION 8 — KNOWN GAPS AND DESIGN DECISIONS PENDING
 // -----------------------------------------------------------------------------
 //
-// 1. POR Claim model not yet created
-//    Need a separate collection to track pending claims before PORAssignment is created
-//    Similar to OrganizationRequest pattern
+// 1. ✅ RESOLVED — POR Claim model and service created
 //
 // 2. Handover notes storage location TBD
 //    Option A — embed in PORAssignment as handoverNotes field
@@ -312,20 +548,16 @@
 //    isCustomRole flag designed but not yet in request.model.ts
 //    Admin review flow for custom roles not yet designed
 //
-// 4. parentRoleId validation missing
-//    TenureRoleConfig.parentRoleId should belong to same tenure
-//    No service-level check exists yet — can accidentally reference wrong tenure's role
-//
-// 5. assignmentStartMonth/Year cross-field validation missing
+// 4. assignmentStartMonth/Year cross-field validation missing
 //    Both month and year must be set together or not at all
 //    Currently no validator enforcing this in assignment.model.ts
 //
-// 6. Org capabilities auto-set not yet implemented
+// 5. Org capabilities auto-set not yet implemented
 //    Organization model has capabilities flags but no pre-save hook
 //    that sets defaults based on category
 //    Currently admin must manually set all 7 flags
 //
-// 7. normalizedDisplayName unique index scope in PORRole
+// 6. normalizedDisplayName unique index scope in PORRole
 //    Currently globally unique — blocks having "Secretary" for both clubs and hostels
 //    Should be scoped to appliesToCategories
 //
@@ -335,53 +567,59 @@
 // TODO LIST
 // -----------------------------------------------------------------------------
 
-// TODO: create pors/models/porClaim.model.ts
-//   — tracks pending POR claims before PORAssignment is created
-//   — fields: orgId, tenureId, tenureRoleConfigId, roleId, claimedBy, status, reviewedBy, reviewedAt, rejectionReason
+// ✅ DONE: pors/porClaims/porClaim.model.ts
+// ✅ DONE: pors/porClaims/porClaim.service.ts
+//   — submitPORClaim, cancelPORClaim, approvePORClaim, rejectPORClaim, getMyPORClaims, getPendingClaimsForOrg
+// ✅ DONE: pors/porClaims/porClaim.controller.ts
+// ✅ DONE: pors/porClaims/porClaim.messages.ts
+// ✅ DONE: claim routes wired into pors.routes.ts
 
-// TODO: create pors/services/porClaim.service.ts
-//   — submitPORClaim() — eligibility checks, create claim, notify level 1+2 holders
-//   — approvePORClaim() — chain of trust check, create PORAssignment, notify student
-//   — rejectPORClaim() — delete claim, notify student with reason
+// ✅ DONE: organizations/orgReq/ — org request submit, approve, reject implemented
+// ✅ DONE: pors/tenures/ — tenure CRUD and status transitions implemented
+// ✅ DONE: pors/tenureConfig/ — tenure role config CRUD, bulk, clone, tree implemented
+// ✅ DONE: pors/constants/permissions.constants.ts
+// ✅ DONE: shared/middleware/orgPermission.middleware.ts (checkOrgPermission)
 
-// TODO: create pors/controllers/porClaim.controller.ts
-//   — claimPOR, approveClaim, rejectClaim, getMyPORs, getPendingClaimsForOrg
+// TODO: wire orgPermission.middleware checkOrgPermission into org-facing routes
+//   — POST /orgs/:orgId/posts           → checkOrgPermission("canPost")
+//   — POST /orgs/:orgId/events          → checkOrgPermission("canCreateEvents")
+//   — PATCH /orgs/:orgId/profile        → checkOrgPermission("canEditOrgProfile")
+//   — tenure/role-config mutation routes → checkOrgPermission("canManageTenure")
 
-// TODO: create pors/routes/porClaim.routes.ts
-//   — POST /pors/claim
-//   — POST /pors/claim/:claimId/approve
-//   — POST /pors/claim/:claimId/reject
-//   — GET  /pors/me
-//   — GET  /orgs/:orgId/pors/pending
+// TODO: implement mid-tenure POR changes (end, transfer, promotion)
+//   — add endPORAssignment() to porAssignment.service.ts
+//   — add transferAssignment() to porAssignment.service.ts
+//   — add renewForTenure() to porAssignment.service.ts
+//   — add bulkPromoteTenure() to porAssignment.service.ts (admin only)
+//   — add endAssignmentController() to porAssignment.controller.ts
+//   — add transferAssignmentController() to porAssignment.controller.ts
+//   — PATCH /pors/assignments/:id/end → endAssignmentController
+//   — PATCH /pors/assignments/:id/transfer → transferAssignmentController
+//   — POST /pors/assignments/renew-for-tenure → renewController
+//   — POST /api/v1/admin/pors/bulk-promote-tenure → bulkPromoteController
+//   — update pors.routes.ts with new routes
+//   — update pors.admin.routes.ts with bulk-promote endpoint
+//   — add tests for all mid-tenure operation edge cases
 
-// TODO: create organizations/services/orgRequest.service.ts
-//   — submitOrgRequest() — validate, create OrganizationRequest
-//   — approveOrgRequest() — MongoDB transaction creating Org + Tenure + TenureRoleConfigs + first PORAssignment
-//   — rejectOrgRequest() — update status, notify student
-//   — notifyParentTopPOR() — find level 1 holder of parent org, send notification
+// TODO: implement handover notes system
+//   — add handoverNotes field to PORAssignment.model.ts
+//   — create porAssignments/handoverNotes.service.ts (store/retrieve notes)
+//   — PATCH /pors/assignments/:id/handover-notes → storeHandoverNotes
+//   — GET /pors/assignments/:id/handover-notes → getHandoverNotes
+//   — Notify incoming holder when they claim role in new tenure
+//   — Display handover notes on student profile
 
-// TODO: create organizations/controllers/orgRequest.controller.ts
-//   — submitRequest, approveRequest, rejectRequest, getMyRequests, getPendingRequests (admin)
+// TODO: create organizations/services/org.service.ts
+//   — getOrgBySlug(), updateOrgProfile(), uploadOrgAvatar(), uploadOrgCover()
 
-// TODO: create organizations/routes/orgRequest.routes.ts
-//   — POST /orgs/request
-//   — GET  /orgs/request/me
-//   — GET  /orgs/request/pending  (admin only)
-//   — POST /orgs/request/:requestId/approve  (admin only)
-//   — POST /orgs/request/:requestId/reject   (admin only)
+// TODO: create organizations/controllers/org.controller.ts
+//   — getOrg, updateProfile, uploadAvatar, uploadCover
 
-// TODO: create tenures/services/tenure.service.ts
-//   — createTenure() — create tenure + copy TenureRoleConfigs from previous tenure
-//   — activateTenure() — update status, deactivate old assignments
-//   — completeTenure() — mark completed, link nextTenureId/previousTenureId
-
-// TODO: create tenures/controllers/tenure.controller.ts
-//   — createTenure, getOrgTenures, getTenureById, updateTenure
-
-// TODO: create tenures/routes/tenure.routes.ts
-//   — POST /orgs/:orgId/tenures
-//   — GET  /orgs/:orgId/tenures
-//   — GET  /orgs/:orgId/tenures/:tenureId
+// TODO: create organizations/routes/org.routes.ts
+//   — GET   /orgs/:slug
+//   — PATCH /orgs/:slug/profile   (checkOrgPermission("canEditOrgProfile"))
+//   — PATCH /orgs/:slug/avatar    (checkOrgPermission("canEditOrgProfile"))
+//   — PATCH /orgs/:slug/cover     (checkOrgPermission("canEditOrgProfile"))
 
 // TODO: create jobs/tenureTransition.job.ts
 //   — cron job — runs daily
@@ -392,28 +630,6 @@
 //   — cron job — runs daily
 //   — finds tenures where startDate is today and status: "planned"
 //   — activates tenure, deactivates old tenure and old PORAssignments
-
-// TODO: add permissions field to tenures/models/tenureRoleConfig.model.ts
-//   — IRolePermissions interface
-//   — canPost, canApproveMembers, canManageRoles, canCreateEvents, canVerifyPORBelow, canEditOrgProfile, canManageTenure
-
-// TODO: create tenures/constants/permissions.constants.ts
-//   — DEFAULT_ROLE_PERMISSIONS_BY_LEVEL map (level 1, 2, 3+)
-
-// TODO: create shared/middleware/checkOrgPermission.ts
-//   — reusable middleware factory: checkOrgPermission("canPost")
-//   — finds active PORAssignment for req.user in req.params.orgId
-//   — reads TenureRoleConfig.permissions for that assignment
-//   — throws 403 if permission is false
-
-// TODO: add pre-save hook to organizations/models/organization.model.ts
-//   — auto-set capabilities based on category using CATEGORY_CAPABILITIES map
-
-// TODO: fix normalizedDisplayName index in pors/models/porRole.model.ts
-//   — change from globally unique to unique per appliesToCategories
-
-// TODO: add parentRoleId validation in tenures/services/tenure.service.ts
-//   — when creating TenureRoleConfig, verify parentRoleId belongs to same tenure
 
 // TODO: add cross-field validator in pors/models/assignment.model.ts
 //   — assignmentStartMonth and assignmentStartYear must both be set or neither
@@ -428,14 +644,23 @@
 //   — seed first tenures and TenureRoleConfigs for each
 //   — update seeds/index.ts to include this seed
 
-// TODO: create organizations/services/org.service.ts
-//   — getOrgBySlug(), updateOrgProfile(), uploadOrgAvatar(), uploadOrgCover()
+// TODO: add pre-save hook to organizations/models/organization.model.ts
+//   — auto-set capabilities based on category using CATEGORY_CAPABILITIES map
 
-// TODO: create organizations/controllers/org.controller.ts
-//   — getOrg, updateProfile, uploadAvatar, uploadCover
+// TODO: fix normalizedDisplayName index in pors/models/porRole.model.ts
+//   — change from globally unique to unique per appliesToCategories
 
-// TODO: create organizations/routes/org.routes.ts
-//   — GET   /orgs/:slug
-//   — PATCH /orgs/:slug/profile   (canEditOrgProfile permission required)
-//   — PATCH /orgs/:slug/avatar    (canEditOrgProfile permission required)
-//   — PATCH /orgs/:slug/cover     (canEditOrgProfile permission required)
+// TODO: add notification calls in porClaim.service.ts
+//   — submitPORClaim: notify all level 1 and level 2 POR holders in same org+tenure
+//   — approvePORClaim: notify claimant their claim was approved
+//   — rejectPORClaim: notify claimant their claim was rejected with reason
+
+// TODO: add notification calls in porAssignment.service.ts
+//   — endPORAssignment: notify other org leaders role is vacant
+//   — renewForTenure: notify student they've been renewed to next tenure
+//   — bulkPromote: notify all promoted students
+
+// TODO: validation — single active POR per org+tenure
+//   — add pre-save hook to PORAssignment.model.ts
+//   — prevent creating second isActive=true for same student+org+tenure
+//   — throw error: "Student already has active POR in this org+tenure"

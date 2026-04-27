@@ -1,3 +1,5 @@
+// server/src/modules/pors/tenureConfig/tenureRoleConfig.service.ts
+
 import { AnyBulkWriteOperation } from "mongoose";
 
 import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
@@ -10,29 +12,21 @@ import {
     UpdateTenureRoleConfigInput,
     UpdateTenureRoleConfigStatusInput,
 } from "../../../validations/tenureRoleConfig.validation";
+import { getDefaultPermissions } from "../constants/permissions.constants";
 import { tenureConfigErrorMessages } from "../tenures/tenure.messages";
 import {
     assertCanDeactivateOrDeleteConfig,
     assertConfigDatesWithinTenure,
     assertMaxHoldersNotBelowAssignments,
     assertTenureAllowsConfigEdits,
-    buildConfigTree,
     ensureRolesExist,
     ensureTenureExistsForConfig,
     ensureTenureRoleConfig,
     parseBulkConfigUpdate,
-} from "./tenureConfig.utils";
+} from "../utils";
 import TenureRoleConfig, {
     type ITenureRoleConfig,
 } from "./tenureRoleConfig.model";
-
-const toNormalizedParentRoleId = (parentRoleId?: string | null) => {
-    if (!parentRoleId) {
-        return null;
-    }
-
-    return toObjectId(parentRoleId);
-};
 
 export const createTenureRoleConfig = async (
     tenureId: string,
@@ -42,9 +36,7 @@ export const createTenureRoleConfig = async (
     const tenure = await ensureTenureExistsForConfig(tenureId);
     assertTenureAllowsConfigEdits(tenure);
 
-    await ensureRolesExist(
-        [data.roleId, data.parentRoleId].filter(Boolean) as string[]
-    );
+    await ensureRolesExist([data.roleId].filter(Boolean) as string[]);
 
     assertConfigDatesWithinTenure(tenure, data.effectiveFrom, data.effectiveTo);
 
@@ -54,11 +46,12 @@ export const createTenureRoleConfig = async (
             orgId: tenure.orgId,
             roleId: toObjectId(data.roleId),
             isActiveInTenure: data.isActiveInTenure ?? true,
-            parentRoleId: toNormalizedParentRoleId(data.parentRoleId),
             level: data.level ?? 0,
             sortOrder: data.sortOrder ?? 0,
             maxHolders: data.maxHolders ?? 1,
             canBeVacant: data.canBeVacant ?? true,
+            permissions:
+                data.permissions ?? getDefaultPermissions(data.level ?? 0),
             effectiveFrom: data.effectiveFrom,
             effectiveTo: data.effectiveTo,
             changeReason: data.changeReason,
@@ -91,9 +84,6 @@ export const bulkUpsertTenureRoleConfigs = async (
 
     for (const config of data.configs) {
         roleIds.add(config.roleId);
-        if (config.parentRoleId) {
-            roleIds.add(config.parentRoleId);
-        }
 
         assertConfigDatesWithinTenure(
             tenure,
@@ -133,11 +123,13 @@ export const bulkUpsertTenureRoleConfigs = async (
                         orgId: tenure.orgId,
                         roleId: toObjectId(config.roleId),
                         isActiveInTenure: true,
-                        parentRoleId: null,
                         level: 0,
                         sortOrder: 0,
                         maxHolders: 1,
                         canBeVacant: true,
+                        permissions:
+                            config.permissions ??
+                            getDefaultPermissions(config.level ?? 0),
                         createdBy: updatedById,
                     },
                 },
@@ -150,7 +142,6 @@ export const bulkUpsertTenureRoleConfigs = async (
     return TenureRoleConfig.find({ tenureId: tenure._id })
         .sort({ level: 1, sortOrder: 1, _id: 1 })
         .populate("roleId", "_id roleKey displayName defaultSortOrder")
-        .populate("parentRoleId", "_id roleKey displayName defaultSortOrder")
         .lean();
 };
 
@@ -171,21 +162,7 @@ export const listTenureRoleConfigs = async (
     return TenureRoleConfig.find(filter)
         .sort({ level: 1, sortOrder: 1, _id: 1 })
         .populate("roleId", "_id roleKey displayName defaultSortOrder")
-        .populate("parentRoleId", "_id roleKey displayName defaultSortOrder")
         .lean();
-};
-
-export const getTenureRoleConfigTree = async (tenureId: string) => {
-    await ensureTenureExistsForConfig(tenureId);
-
-    const configs = await TenureRoleConfig.find({
-        tenureId: toObjectId(tenureId),
-    })
-        .sort({ level: 1, sortOrder: 1, _id: 1 })
-        .populate("roleId", "_id roleKey displayName defaultSortOrder")
-        .populate("parentRoleId", "_id roleKey displayName defaultSortOrder");
-
-    return buildConfigTree(configs);
 };
 
 export const updateTenureRoleConfig = async (
@@ -196,10 +173,6 @@ export const updateTenureRoleConfig = async (
 ) => {
     const tenure = await ensureTenureExistsForConfig(tenureId);
     assertTenureAllowsConfigEdits(tenure);
-
-    if (data.parentRoleId) {
-        await ensureRolesExist([data.parentRoleId]);
-    }
 
     assertConfigDatesWithinTenure(tenure, data.effectiveFrom, data.effectiveTo);
 
@@ -216,11 +189,6 @@ export const updateTenureRoleConfig = async (
 
     if (data.isActiveInTenure !== undefined) {
         config.isActiveInTenure = data.isActiveInTenure;
-    }
-
-    if (data.parentRoleId !== undefined) {
-        config.parentRoleId =
-            toNormalizedParentRoleId(data.parentRoleId) ?? undefined;
     }
 
     if (data.level !== undefined) config.level = data.level;
@@ -335,11 +303,13 @@ export const cloneTenureRoleConfigs = async (
                 update: {
                     $set: {
                         isActiveInTenure: config.isActiveInTenure,
-                        parentRoleId: config.parentRoleId ?? null,
                         level: config.level,
                         sortOrder: config.sortOrder,
                         maxHolders: config.maxHolders,
                         canBeVacant: config.canBeVacant,
+                        permissions:
+                            config.permissions ??
+                            getDefaultPermissions(config.level),
                         effectiveFrom: config.effectiveFrom,
                         effectiveTo: config.effectiveTo,
                         changeReason: config.changeReason,
@@ -358,5 +328,5 @@ export const cloneTenureRoleConfigs = async (
 
     await TenureRoleConfig.bulkWrite(operations, { ordered: false });
 
-    return { clonedCount: operations.length };
+    return { clonedCount: sourceConfigs.length };
 };

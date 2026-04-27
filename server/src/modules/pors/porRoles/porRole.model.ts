@@ -63,11 +63,3 @@ porRoleSchema.index({ appliesToCategories: 1, isArchived: 1, _id: 1 });
 const PORRole = mongoose.model<IPORRole>("PORRole", porRoleSchema);
 
 export default PORRole;
-
-// TODO: Summary of Changes to Make
-// Add category-based default capabilities hook in Organization
-// Fix normalizedDisplayName unique index scope in PORRole
-// Add consistency validation when both date formats provided in Tenure
-// Add service-level check for parentRoleId belonging to same tenure in TenureRoleConfig
-// Add cross-field validation for assignmentStartMonth/Year pair in PORAssignment
-// Use MongoDB transactions in the org approval service

@@ -1,11 +1,11 @@
-import { HTTP_STATUS } from "../../../../shared/constants/http-status.constants";
-import { ApiError, toObjectId } from "../../../../shared/utils";
+import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
+import { ApiError, toObjectId } from "../../../shared/utils";
 import {
     TENURE_STATUS,
     type TenureStatus,
-} from "../../constants/tenure.constants";
-import { tenureErrorMessages } from "../tenure.messages";
-import Tenure from "../tenure.model";
+} from "../constants/tenure.constants";
+import { tenureErrorMessages } from "../tenures/tenure.messages";
+import Tenure from "../tenures/tenure.model";
 
 const ALLOWED_STATUS_TRANSITIONS: Record<TenureStatus, TenureStatus[]> = {
     [TENURE_STATUS.PLANNED]: [TENURE_STATUS.ACTIVE, TENURE_STATUS.ARCHIVED],

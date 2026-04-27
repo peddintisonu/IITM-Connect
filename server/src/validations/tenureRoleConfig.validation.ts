@@ -1,30 +1,36 @@
+// server/src/validations/tenureRoleConfig.validation.ts
+
 import { z } from "zod";
 
 const OBJECT_ID_REGEX = /^[a-fA-F0-9]{24}$/;
 
+const permissionsSchema = z
+    .object({
+        canPost: z.boolean(),
+        canCreateEvents: z.boolean(),
+        canEditOrgProfile: z.boolean(),
+        canManageRoles: z.boolean(),
+        canManageTenure: z.boolean(),
+        canApproveMembers: z.boolean(),
+        canVerifyPORBelow: z.boolean(),
+    })
+    .optional();
+
 const baseConfigSchema = z.object({
     isActiveInTenure: z.boolean().optional(),
-    parentRoleId: z
-        .union([
-            z.string().regex(OBJECT_ID_REGEX, "parentRoleId must be a valid ObjectId"),
-            z.literal(""),
-            z.null(),
-        ])
-        .optional()
-        .transform((value) => {
-            if (value === "" || value === null) return null;
-            return value;
-        }),
     level: z.number().int().min(0).max(10).optional(),
     sortOrder: z.number().int().min(0).max(999).optional(),
     maxHolders: z.number().int().min(1).max(100).optional(),
     canBeVacant: z.boolean().optional(),
+    permissions: permissionsSchema,
     effectiveFrom: z.coerce.date().optional(),
     effectiveTo: z.coerce.date().optional(),
     changeReason: z.string().trim().max(300).optional(),
 });
 
-const validateEffectiveWindow = <T extends { effectiveFrom?: Date; effectiveTo?: Date }>(
+const validateEffectiveWindow = <
+    T extends { effectiveFrom?: Date; effectiveTo?: Date },
+>(
     value: T
 ) => {
     if (!value.effectiveFrom || !value.effectiveTo) return true;
@@ -54,7 +60,10 @@ export const bulkUpsertTenureRoleConfigsSchema = z.object({
                 .object({
                     roleId: z
                         .string()
-                        .regex(OBJECT_ID_REGEX, "roleId must be a valid ObjectId"),
+                        .regex(
+                            OBJECT_ID_REGEX,
+                            "roleId must be a valid ObjectId"
+                        ),
                 })
                 .merge(baseConfigSchema)
                 .refine(validateEffectiveWindow, {

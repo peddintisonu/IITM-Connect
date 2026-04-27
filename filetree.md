@@ -1,6 +1,6 @@
 # File Tree: IITM Connect
 
-**Generated:** 4/19/2026, 7:34:55 PM
+**Generated:** 4/27/2026, 3:21:17 PM
 **Root Path:** `d:\Projects\Web-Projects\IITM Connect`
 
 ```
@@ -96,6 +96,7 @@
 │   │   │   │   ├── 📄 auth.routes.ts
 │   │   │   │   ├── 📄 auth.service.ts
 │   │   │   │   ├── 📄 auth.swagger.ts
+│   │   │   │   ├── 📄 index.ts
 │   │   │   │   └── 📄 session.model.ts
 │   │   │   ├── 📁 core
 │   │   │   │   ├── 📁 constants
@@ -109,19 +110,81 @@
 │   │   │   │   ├── 📄 masterData.routes.ts
 │   │   │   │   ├── 📄 masterData.service.ts
 │   │   │   │   └── 📄 masterData.swagger.ts
+│   │   │   ├── 📁 organizations
+│   │   │   │   ├── 📁 constants
+│   │   │   │   │   ├── 📄 organization.constants.ts
+│   │   │   │   │   ├── 📄 organizationDuty.constants.ts
+│   │   │   │   │   └── 📄 organizationRequest.constants.ts
+│   │   │   │   ├── 📁 orgReq
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   ├── 📄 orgReq.controller.ts
+│   │   │   │   │   ├── 📄 orgReq.model.ts
+│   │   │   │   │   └── 📄 orgReq.service.ts
+│   │   │   │   ├── 📁 utils
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   └── 📄 orgReq.utils.ts
+│   │   │   │   ├── 📄 index.ts
+│   │   │   │   ├── 📄 orgFlows.ts
+│   │   │   │   ├── 📄 organization.messages.ts
+│   │   │   │   ├── 📄 organization.model.ts
+│   │   │   │   ├── 📄 organization.routes.ts
+│   │   │   │   ├── 📄 organization.swagger.ts
+│   │   │   │   └── 📄 organizationDuty.model.ts
+│   │   │   ├── 📁 pors
+│   │   │   │   ├── 📁 constants
+│   │   │   │   │   ├── 📄 permissions.constants.ts
+│   │   │   │   │   ├── 📄 por.constants.ts
+│   │   │   │   │   └── 📄 tenure.constants.ts
+│   │   │   │   ├── 📁 porAssignments
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   ├── 📄 porAssignment.controller.ts
+│   │   │   │   │   ├── 📄 porAssignment.messages.ts
+│   │   │   │   │   ├── 📄 porAssignment.model.ts
+│   │   │   │   │   └── 📄 porAssignment.service.ts
+│   │   │   │   ├── 📁 porClaims
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   ├── 📄 porClaim.controller.ts
+│   │   │   │   │   ├── 📄 porClaim.messages.ts
+│   │   │   │   │   ├── 📄 porClaim.model.ts
+│   │   │   │   │   └── 📄 porClaim.service.ts
+│   │   │   │   ├── 📁 roles
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   └── 📄 porRole.model.ts
+│   │   │   │   ├── 📁 tenureConfig
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   ├── 📄 tenureConfig.utils.ts
+│   │   │   │   │   ├── 📄 tenureRoleConfig.controller.ts
+│   │   │   │   │   ├── 📄 tenureRoleConfig.model.ts
+│   │   │   │   │   └── 📄 tenureRoleConfig.service.ts
+│   │   │   │   ├── 📁 tenures
+│   │   │   │   │   ├── 📁 utils
+│   │   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   │   └── 📄 tenure.utils.ts
+│   │   │   │   │   ├── 📄 index.ts
+│   │   │   │   │   ├── 📄 tenure.controller.ts
+│   │   │   │   │   ├── 📄 tenure.messages.ts
+│   │   │   │   │   ├── 📄 tenure.model.ts
+│   │   │   │   │   └── 📄 tenure.service.ts
+│   │   │   │   ├── 📄 index.ts
+│   │   │   │   ├── 📄 pors.routes.ts
+│   │   │   │   └── 📄 pors.swagger.ts
 │   │   │   ├── 📁 social
+│   │   │   │   ├── 📁 block
+│   │   │   │   │   ├── 📄 block.controller.ts
+│   │   │   │   │   ├── 📄 block.model.ts
+│   │   │   │   │   ├── 📄 block.service.ts
+│   │   │   │   │   ├── 📄 block.swagger.ts
+│   │   │   │   │   └── 📄 index.ts
+│   │   │   │   ├── 📁 follow
+│   │   │   │   │   ├── 📄 follow.controller.ts
+│   │   │   │   │   ├── 📄 follow.model.ts
+│   │   │   │   │   ├── 📄 follow.service.ts
+│   │   │   │   │   ├── 📄 follow.swagger.ts
+│   │   │   │   │   └── 📄 index.ts
 │   │   │   │   ├── 📁 utils
 │   │   │   │   │   ├── 📄 index.ts
 │   │   │   │   │   ├── 📄 pagination.utils.ts
 │   │   │   │   │   └── 📄 relationships.utils.ts
-│   │   │   │   ├── 📄 block.controller.ts
-│   │   │   │   ├── 📄 block.model.ts
-│   │   │   │   ├── 📄 block.service.ts
-│   │   │   │   ├── 📄 block.swagger.ts
-│   │   │   │   ├── 📄 follow.controller.ts
-│   │   │   │   ├── 📄 follow.model.ts
-│   │   │   │   ├── 📄 follow.service.ts
-│   │   │   │   ├── 📄 follow.swagger.ts
 │   │   │   │   ├── 📄 social.constants.ts
 │   │   │   │   ├── 📄 social.messages.ts
 │   │   │   │   ├── 📄 social.routes.ts
@@ -132,6 +195,7 @@
 │   │   │       │   ├── 📄 privacy.ts
 │   │   │       │   ├── 📄 rollNo.ts
 │   │   │       │   └── 📄 search.ts
+│   │   │       ├── 📄 index.ts
 │   │   │       ├── 📄 student.constants.ts
 │   │   │       ├── 📄 student.controller.ts
 │   │   │       ├── 📄 student.messages.ts
@@ -141,6 +205,9 @@
 │   │   │       └── 📄 student.swagger.ts
 │   │   ├── 📁 seeds
 │   │   │   ├── 📁 masterData
+│   │   │   │   ├── 📄 index.ts
+│   │   │   │   └── 📄 seed.ts
+│   │   │   ├── 📁 pors
 │   │   │   │   ├── 📄 index.ts
 │   │   │   │   └── 📄 seed.ts
 │   │   │   ├── 📁 roles
@@ -165,6 +232,7 @@
 │   │   │   ├── 📁 middleware
 │   │   │   │   ├── 📄 auth.middleware.ts
 │   │   │   │   ├── 📄 errorHandler.ts
+│   │   │   │   ├── 📄 orgPermission.middleware.ts
 │   │   │   │   └── 📄 upload.middleware.ts
 │   │   │   └── 📁 utils
 │   │   │       ├── 📄 ApiError.ts
@@ -177,8 +245,12 @@
 │   │   │   └── 📄 express.d.ts
 │   │   ├── 📁 validations
 │   │   │   ├── 📄 masterData.validation.ts
+│   │   │   ├── 📄 organizationRequest.validation.ts
+│   │   │   ├── 📄 porAssignment.validation.ts
 │   │   │   ├── 📄 social.validation.ts
-│   │   │   └── 📄 student.validation.ts
+│   │   │   ├── 📄 student.validation.ts
+│   │   │   ├── 📄 tenure.validation.ts
+│   │   │   └── 📄 tenureRoleConfig.validation.ts
 │   │   ├── 📄 app.ts
 │   │   └── 📄 server.ts
 │   ├── ⚙️ .env.example

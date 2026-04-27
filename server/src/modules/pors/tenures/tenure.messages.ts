@@ -42,7 +42,6 @@ export const tenureConfigRouteMessages = {
     configCreated: "Tenure role config created",
     configsUpserted: "Tenure role configs upserted",
     configsFetched: "Tenure role configs fetched",
-    configTreeFetched: "Tenure role config tree fetched",
     configUpdated: "Tenure role config updated",
     configStatusUpdated: "Tenure role config status updated",
     configDeleted: "Tenure role config deleted",

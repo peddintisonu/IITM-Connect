@@ -10,6 +10,7 @@ import authRoutes from "./modules/auth/auth.routes";
 import masterDataRoutes from "./modules/core/masterData.routes";
 import organizationRoutes from "./modules/organizations/organization.routes";
 import porsRoutes from "./modules/pors/pors.routes";
+import porsAdminRoutes from "./modules/pors/pors.admin.routes";
 import socialRoutes from "./modules/social/social.routes";
 import studentRoutes from "./modules/students/student.routes";
 
@@ -36,6 +37,10 @@ app.use("/api/v1/organizations", organizationRoutes);
 app.use("/api/v1/pors", porsRoutes);
 app.use("/api/v1/students", studentRoutes);
 app.use("/api/v1/social", socialRoutes);
+
+// Admin routes (protected by admin checks within each route)
+app.use("/api/v1/admin/pors", porsAdminRoutes);
+
 app.get("/api/v1/health", (req, res) => {
     res.json({ status: "ok", message: "IITMConnect server is running" });
 });

@@ -6,7 +6,7 @@
 **Stack:** MERN + TypeScript  
 **Team:** 2 developers  
 **Start Date:** 11-04-2026  
-**Last Updated:** 19-04-2026
+**Last Updated:** 28-04-2026 — _Major POR system refactor: flat hierarchy, org autonomy, claims workflow_
 
 ---
 
@@ -121,10 +121,26 @@ LinkedIn (verified student identity + roles/PORs)
 
 1. Duties are action-level permissions (profile edits, post actions, member actions, tenure actions), not only role labels.
 2. Duties are mapped to POR roles at organization scope.
-3. Approval authority follows hierarchy:
-    - upper roles can approve lower roles
-    - highest role can approve any role in the organization, including parallel-level roles
-4. Role labels can persist across tenures while active usage and hierarchy can vary tenure to tenure.
+3. Approval authority follows **level-based hierarchy** (flat structure, no parent-child):
+    - **Level 1**: Organization leader (all duties, can manage tenures and roles, can approve any claim)
+    - **Level 2**: Core operational roles (limited duties: posts, events, member verification)
+    - **Level 3+**: Member roles (read-only, no duties)
+4. Role hierarchy is represented by **level assignment** (1-10 scale) within each tenure, not nested parent-child relationships.
+5. Claims workflow: Student submits claim → Level 1/2 leader approves (chain-of-trust check) → Auto-creates POR assignment.
+
+#### V1 Organization Leadership Autonomy
+
+1. **Level 1 leaders manage their own tenures** — No global admin needed for org governance.
+2. **Level 1 leaders configure roles** — Create new roles, update existing roles, set permissions per role.
+3. **Admin role limited to bootstrap** — Global admins only create permanent orgs and handle exceptions.
+4. **Permission model per role**: 7 configurable duties per role:
+    - `canPost` — publish org announcements
+    - `canCreateEvents` — schedule and manage events
+    - `canEditOrgProfile` — update org description, avatar, cover
+    - `canManageRoles` — create/edit/delete role configurations
+    - `canManageTenure` — create/update tenures, change status
+    - `canApproveMembers` — approve/reject POR claims
+    - `canVerifyPORBelow` — verify members in lower-level roles
 
 #### V1 Tenure and Assignment Window Rules
 
@@ -132,6 +148,8 @@ LinkedIn (verified student identity + roles/PORs)
 2. A student assignment can default to full-tenure coverage or use a partial month/year sub-window.
 3. Partial assignment windows must remain fully inside the selected tenure window.
 4. Tenure overlap is not allowed within the same organization for conflicting active windows.
+5. **Single active POR per organization+tenure per student** — Invariant enforced at model level.
+6. **Mid-tenure POR changes** — Level 1 can end, transfer, or promote assignments within tenure lifecycle.
 
 #### Campus Content and Operations
 

@@ -1,21 +1,40 @@
+// server/src/modules/pors/tenureConfig/tenureRoleConfig.model.ts
+
 import mongoose, { Schema } from "mongoose";
+import {
+    DEFAULT_PERMISSIONS_FALLBACK,
+    IRolePermissions,
+} from "../constants/permissions.constants";
 
 export interface ITenureRoleConfig extends mongoose.Document {
     tenureId: mongoose.Types.ObjectId;
     orgId: mongoose.Types.ObjectId;
     roleId: mongoose.Types.ObjectId;
     isActiveInTenure: boolean;
-    parentRoleId?: mongoose.Types.ObjectId | null;
     level: number;
     sortOrder: number;
     maxHolders: number;
     canBeVacant: boolean;
+    permissions: IRolePermissions;
     effectiveFrom?: Date;
     effectiveTo?: Date;
     changeReason?: string;
     createdBy?: mongoose.Types.ObjectId;
     updatedBy?: mongoose.Types.ObjectId;
 }
+
+const rolePermissionsSchema = new Schema<IRolePermissions>(
+    {
+        canPost: { type: Boolean, default: false },
+        canCreateEvents: { type: Boolean, default: false },
+        canEditOrgProfile: { type: Boolean, default: false },
+        canManageRoles: { type: Boolean, default: false },
+        canManageTenure: { type: Boolean, default: false },
+        canApproveMembers: { type: Boolean, default: false },
+        canVerifyPORBelow: { type: Boolean, default: false },
+    },
+    { _id: false }
+);
 
 const tenureRoleConfigSchema = new Schema<ITenureRoleConfig>(
     {
@@ -35,15 +54,14 @@ const tenureRoleConfigSchema = new Schema<ITenureRoleConfig>(
             required: true,
         },
         isActiveInTenure: { type: Boolean, default: true },
-        parentRoleId: {
-            type: Schema.Types.ObjectId,
-            ref: "PORRole",
-            default: null,
-        },
         level: { type: Number, default: 0 },
         sortOrder: { type: Number, default: 0 },
         maxHolders: { type: Number, default: 1 },
         canBeVacant: { type: Boolean, default: true },
+        permissions: {
+            type: rolePermissionsSchema,
+            default: () => ({ ...DEFAULT_PERMISSIONS_FALLBACK }),
+        },
         effectiveFrom: { type: Date },
         effectiveTo: { type: Date },
         changeReason: { type: String, trim: true },

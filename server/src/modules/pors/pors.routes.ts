@@ -3,16 +3,24 @@ import { Router } from "express";
 import {
     protectRoute,
     requireOnboardingComplete,
-    requireRoles,
 } from "../../shared/middleware/auth.middleware";
-import { STUDENT_ROLE } from "../students/student.model";
-import { createPORAssignmentController } from "./porAssignments/porAssignment.controller";
+import {
+    requireOrgTopLevelFromBody,
+    requireTenureTopLevel,
+} from "../../shared/middleware/orgPermission.middleware";
+import {
+    approveClaim,
+    cancelClaim,
+    getMyClaims,
+    getOrgPendingClaims,
+    rejectClaim,
+    submitClaim,
+} from "./porClaims/porClaim.controller";
 import {
     bulkUpsertTenureRoleConfigsController,
     cloneTenureRoleConfigsController,
     createTenureRoleConfigController,
     deleteTenureRoleConfigController,
-    getTenureRoleConfigTreeController,
     listTenureRoleConfigsController,
     updateTenureRoleConfigController,
     updateTenureRoleConfigStatusController,
@@ -29,63 +37,97 @@ const router = Router();
 
 router.use(protectRoute, requireOnboardingComplete);
 
-router.post(
-    "/assignments",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
-    createPORAssignmentController
-);
+// ── Claims (student actions) ───────────────────────────────────────────────────
 
+// Submit a claim for a role in an active tenure
+router.post("/claims", submitClaim);
+
+// Cancel a pending POR claim
+router.delete("/claims/:claimId", cancelClaim);
+
+// Get all claims submitted by the current student
+router.get("/claims/mine", getMyClaims);
+
+// ── Claims (POR holder actions) ────────────────────────────────────────────────
+
+// Get pending claims for an organization in a specific tenure
+router.get("/claims/org/:orgId", getOrgPendingClaims);
+
+// Approve a pending claim (creates POR assignment)
+router.post("/claims/:claimId/approve", approveClaim);
+
+// Reject a pending claim with mandatory reason
+router.post("/claims/:claimId/reject", rejectClaim);
+
+// ── Tenures ────────────────────────────────────────────────────────────────────
+
+// List all tenures for the user's organizations
 router.get("/tenures", listTenuresController);
+
+// Get a specific tenure by ID
 router.get("/tenures/:tenureId", getTenureByIdController);
-router.post(
-    "/tenures",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
-    createTenureController
-);
+
+// Create a new tenure (top-level org members only)
+router.post("/tenures", requireOrgTopLevelFromBody, createTenureController);
+
+// Update tenure details (top-level org members only)
 router.patch(
     "/tenures/:tenureId",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
+    requireTenureTopLevel,
     updateTenureController
 );
+
+// Update tenure status (top-level org members only)
 router.patch(
     "/tenures/:tenureId/status",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
+    requireTenureTopLevel,
     updateTenureStatusController
 );
 
+// ── Tenure Role Configs ────────────────────────────────────────────────────────
+
+// List role configurations for a tenure
 router.get("/tenures/:tenureId/role-configs", listTenureRoleConfigsController);
-router.get(
-    "/tenures/:tenureId/role-configs/tree",
-    getTenureRoleConfigTreeController
-);
+
+// Create a new role configuration (top-level org members only)
 router.post(
     "/tenures/:tenureId/role-configs",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
+    requireTenureTopLevel,
     createTenureRoleConfigController
 );
+
+// Bulk upsert role configurations (top-level org members only)
 router.put(
     "/tenures/:tenureId/role-configs/bulk",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
+    requireTenureTopLevel,
     bulkUpsertTenureRoleConfigsController
 );
+
+// Update a role configuration (top-level org members only)
 router.patch(
     "/tenures/:tenureId/role-configs/:configId",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
+    requireTenureTopLevel,
     updateTenureRoleConfigController
 );
+
+// Update role configuration status (top-level org members only)
 router.patch(
     "/tenures/:tenureId/role-configs/:configId/status",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
+    requireTenureTopLevel,
     updateTenureRoleConfigStatusController
 );
+
+// Delete a role configuration (top-level org members only)
 router.delete(
     "/tenures/:tenureId/role-configs/:configId",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
+    requireTenureTopLevel,
     deleteTenureRoleConfigController
 );
+
+// Clone role configurations from another tenure (top-level org members only)
 router.post(
     "/tenures/:tenureId/role-configs/clone-from/:sourceTenureId",
-    requireRoles(STUDENT_ROLE.ADMIN, STUDENT_ROLE.SUPER_ADMIN),
+    requireTenureTopLevel,
     cloneTenureRoleConfigsController
 );
 

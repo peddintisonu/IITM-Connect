@@ -8,6 +8,7 @@ import {
 } from "../../../validations/organizationRequest.validation";
 import { PORAssignment, Tenure, TenureRoleConfig } from "../../pors";
 import PORRole from "../../pors/roles/porRole.model";
+import { buildDateRangeFromMonthYear } from "../../pors/utils";
 import { ORGANIZATION_REQUEST_STATUS } from "../constants/organizationRequest.constants";
 import { organizationErrorMessages } from "../organization.messages";
 import OrganizationModel from "../organization.model";
@@ -18,6 +19,7 @@ import {
     buildApprovedTenureRoleConfigPayloads,
     buildInitialCreatorPorAssignmentPayload,
     buildRejectedOrganizationRequestMetadata,
+    generateSlug,
     getPendingApprovalStepIndex,
     isRoleApplicableForCategory,
 } from "../utils";
@@ -34,20 +36,25 @@ export const createOrganizationRequest = async (
         creatorRequestedRoleId,
     } = data;
 
+    // 1. Logic for Slug: Use provided slug or generate from name
+    const finalSlug = organization.slug || generateSlug(organization.name);
+
+    // 2. Check for existing organization with this slug
     const existingOrganization = await OrganizationModel.findOne({
-        slug: organization.slug,
+        slug: finalSlug,
     })
         .select("_id")
         .lean();
+
     if (existingOrganization) {
         throw new ApiError(
             HTTP_STATUS.CONFLICT,
-            organizationErrorMessages.organizationAlreadyExists
+            "Organization slug already taken"
         );
     }
 
     const existingRequest = await OrganizationRequest.findOne({
-        "organization.slug": organization.slug,
+        "organization.slug": finalSlug,
         status: {
             $in: [
                 ORGANIZATION_REQUEST_STATUS.PENDING,
@@ -87,12 +94,16 @@ export const createOrganizationRequest = async (
         );
     }
 
+    const firstTenureDates = buildDateRangeFromMonthYear({
+        startMonth: firstTenure.startMonth,
+        startYear: firstTenure.startYear,
+        endMonth: firstTenure.endMonth,
+        endYear: firstTenure.endYear,
+    });
+
     const roleIds = new Set<string>([creatorRequestedRoleId]);
     for (const config of firstTenureRoleConfigs) {
         roleIds.add(config.roleId);
-        if (config.parentRoleId) {
-            roleIds.add(config.parentRoleId);
-        }
     }
 
     const porRoles = await PORRole.find({
@@ -131,18 +142,24 @@ export const createOrganizationRequest = async (
     return OrganizationRequest.create({
         requestedBy: toObjectId(requestedBy),
         organization: {
-            ...organization,
+            name: organization.name,
+            slug: finalSlug,
+            category: organization.category,
+            establishedYear: organization.establishedYear,
             parentOrgId: organization.parentOrgId
                 ? toObjectId(organization.parentOrgId)
                 : undefined,
+            isPermanent: organization.isPermanent,
         },
-        firstTenure,
+        firstTenure: {
+            ...firstTenure,
+            cycleYear: firstTenure.cycleYear ?? firstTenure.startYear,
+            startDate: firstTenureDates.startDate,
+            endDate: firstTenureDates.endDate,
+        },
         firstTenureRoleConfigs: firstTenureRoleConfigs.map((config) => ({
             ...config,
             roleId: toObjectId(config.roleId),
-            parentRoleId: config.parentRoleId
-                ? toObjectId(config.parentRoleId)
-                : undefined,
         })),
         creatorRequestedRoleId: toObjectId(creatorRequestedRoleId),
         requiresParentTopPorApproval: data.requiresParentTopPorApproval,

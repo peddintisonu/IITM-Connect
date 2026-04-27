@@ -11,8 +11,6 @@ import {
     TENURE_HANDOVER_STATUS,
     TENURE_STATUS,
 } from "../constants/tenure.constants";
-import { tenureErrorMessages } from "./tenure.messages";
-import Tenure from "./tenure.model";
 import {
     assertNoTenureOverlap,
     assertValidDateWindow,
@@ -20,7 +18,9 @@ import {
     assertValidStatusTransition,
     buildDateRangeFromMonthYear,
     getDefaultAcademicMonthYearPeriod,
-} from "./utils";
+} from "../utils";
+import { tenureErrorMessages } from "./tenure.messages";
+import Tenure from "./tenure.model";
 
 export const createTenure = async (
     createdBy: string,
@@ -150,8 +150,8 @@ export const updateTenure = async (
             endYear: nextEndYear,
         });
 
-    const nextStartDate = data.startDate ?? computedStartDate;
-    const nextEndDate = data.endDate ?? computedEndDate;
+    const nextStartDate = computedStartDate;
+    const nextEndDate = computedEndDate;
     assertValidDateWindow(nextStartDate, nextEndDate);
 
     await assertNoTenureOverlap(
