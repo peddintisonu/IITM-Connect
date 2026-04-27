@@ -5,7 +5,7 @@ export interface ITenureRoleConfig extends mongoose.Document {
     orgId: mongoose.Types.ObjectId;
     roleId: mongoose.Types.ObjectId;
     isActiveInTenure: boolean;
-    parentRoleId?: mongoose.Types.ObjectId;
+    parentRoleId?: mongoose.Types.ObjectId | null;
     level: number;
     sortOrder: number;
     maxHolders: number;

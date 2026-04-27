@@ -156,6 +156,37 @@ Social list pagination response shape:
 
 Admin-only master-data mutations exist but are usually not part of regular student frontend flows.
 
+## Organization Request Routes
+
+- `POST /api/v1/organizations/requests`
+- `POST /api/v1/organizations/requests/:requestId/approve`
+- `POST /api/v1/organizations/requests/:requestId/reject`
+
+## POR Routes
+
+Assignments:
+
+- `POST /api/v1/pors/assignments`
+
+Tenures:
+
+- `GET /api/v1/pors/tenures?orgId=&status=&cycleYear=&activeOnDate=`
+- `GET /api/v1/pors/tenures/:tenureId`
+- `POST /api/v1/pors/tenures`
+- `PATCH /api/v1/pors/tenures/:tenureId`
+- `PATCH /api/v1/pors/tenures/:tenureId/status`
+
+Tenure role configs:
+
+- `GET /api/v1/pors/tenures/:tenureId/role-configs?isActiveInTenure=`
+- `GET /api/v1/pors/tenures/:tenureId/role-configs/tree`
+- `POST /api/v1/pors/tenures/:tenureId/role-configs`
+- `PUT /api/v1/pors/tenures/:tenureId/role-configs/bulk`
+- `PATCH /api/v1/pors/tenures/:tenureId/role-configs/:configId`
+- `PATCH /api/v1/pors/tenures/:tenureId/role-configs/:configId/status`
+- `DELETE /api/v1/pors/tenures/:tenureId/role-configs/:configId`
+- `POST /api/v1/pors/tenures/:tenureId/role-configs/clone-from/:sourceTenureId`
+
 ---
 
 ## Reference Data Rules (Critical)
@@ -261,6 +292,116 @@ Step order:
 5. Cancel sent request: `DELETE /api/v1/social/follow/:followingId/request`
 
 For all list calls above, include `limit` and optional `cursor`, then continue pagination using returned `nextCursor` while `hasMore` is true.
+
+---
+
+## Example 5: Organization Request Submission
+
+Goal: submit an organization creation request that can later materialize org + tenure + role configs + creator assignment.
+
+Step order:
+
+1. Collect organization metadata and role hierarchy inputs.
+2. Submit `POST /api/v1/organizations/requests`.
+3. For admin views, call approve/reject routes on selected request IDs.
+
+Payload example:
+
+```json
+{
+    "organization": {
+        "name": "Aero Club",
+        "slug": "aero-club",
+        "category": "club",
+        "description": "Aero and UAV community"
+    },
+    "firstTenure": {
+        "name": "AY 2026-27",
+        "cycleYear": 2026,
+        "startDate": "2026-08-01T00:00:00.000Z",
+        "endDate": "2027-04-30T23:59:59.999Z"
+    },
+    "firstTenureRoleConfigs": [
+        {
+            "roleId": "6801aabbccddeeff00112234",
+            "level": 0,
+            "sortOrder": 0,
+            "maxHolders": 1,
+            "canBeVacant": false
+        }
+    ],
+    "creatorRequestedRoleId": "6801aabbccddeeff00112234",
+    "requiresParentTopPorApproval": false
+}
+```
+
+Important notes:
+
+1. If `requiresParentTopPorApproval` is true, `organization.parentOrgId` is required.
+2. Slug conflicts are `409` and should map to inline slug feedback.
+3. Approval and rejection routes are admin/super-admin gated.
+
+---
+
+## Example 6: Tenure Create/Update (Month/Year Contract)
+
+Goal: manage academic tenures using month/year boundaries.
+
+Create payload example:
+
+```json
+{
+    "orgId": "6801aabbccddeeff00112233",
+    "name": "AY 2026-27",
+    "cycleYear": 2026,
+    "startMonth": 8,
+    "startYear": 2026,
+    "endMonth": 4,
+    "endYear": 2027,
+    "status": "planned"
+}
+```
+
+Important notes:
+
+1. Month/year fields are primary; start/end date values are compatibility fields only.
+2. On update, if any period field changes, send all four: startMonth, startYear, endMonth, endYear.
+3. Overlap conflicts return `409`.
+
+---
+
+## Example 7: POR Assignment With Optional Partial Window
+
+Goal: assign a student for full tenure or a bounded partial sub-window.
+
+Full-tenure payload:
+
+```json
+{
+    "tenureRoleConfigId": "6801aabbccddeeff00112235",
+    "studentId": "6801aabbccddeeff00112236"
+}
+```
+
+Partial payload:
+
+```json
+{
+    "tenureRoleConfigId": "6801aabbccddeeff00112235",
+    "studentId": "6801aabbccddeeff00112236",
+    "assignmentStartMonth": 10,
+    "assignmentStartYear": 2026,
+    "assignmentEndMonth": 2,
+    "assignmentEndYear": 2027,
+    "notes": "Joined after mid-semester"
+}
+```
+
+Important notes:
+
+1. If partial window is used, all four assignment window fields are required.
+2. Partial assignment window must stay inside tenure window.
+3. Capacity and duplicate-active checks return `409`.
 
 ---
 

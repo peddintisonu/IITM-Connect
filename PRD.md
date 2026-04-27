@@ -98,13 +98,15 @@ LinkedIn (verified student identity + roles/PORs)
 - Student-initiated organization request workflow with approval gates
 - First-tenure and first-role bootstrap captured during organization request
 - Role-duty governance model for organization page operations
+- Tenure period modeled with month/year boundaries for academic-cycle clarity
+- Optional partial assignment period support within tenure bounds
 
 #### V1 Governance Flow (Detailed)
 
 1. Any onboarded student can submit an organization creation request.
 2. Request payload includes:
     - organization basics (name, type, parent if applicable)
-    - first tenure definition (name, dates, cycle year when applicable)
+    - first tenure definition (name, month/year period, cycle year when applicable)
     - first tenure role configuration (hierarchy and role limits)
     - creator's requested role in the first tenure
 3. Request is reviewed by super admin, and optionally by top POR of parent organization when parent-linked governance is required.
@@ -123,6 +125,13 @@ LinkedIn (verified student identity + roles/PORs)
     - upper roles can approve lower roles
     - highest role can approve any role in the organization, including parallel-level roles
 4. Role labels can persist across tenures while active usage and hierarchy can vary tenure to tenure.
+
+#### V1 Tenure and Assignment Window Rules
+
+1. Tenure windows are defined using month/year boundaries and mapped to internal date ranges for overlap checks and reporting.
+2. A student assignment can default to full-tenure coverage or use a partial month/year sub-window.
+3. Partial assignment windows must remain fully inside the selected tenure window.
+4. Tenure overlap is not allowed within the same organization for conflicting active windows.
 
 #### Campus Content and Operations
 

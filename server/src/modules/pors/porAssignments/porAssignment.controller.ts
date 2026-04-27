@@ -7,8 +7,8 @@ import {
     validateAndParse,
 } from "../../../shared/utils";
 import { createPORAssignmentSchema } from "../../../validations/porAssignment.validation";
-import { porAssignmentRouteMessages } from "./assignment.messages";
-import { createPORAssignment } from "./assignment.service";
+import { porAssignmentRouteMessages } from "./porAssignment.messages";
+import { createPORAssignment } from "./porAssignment.service";
 
 export const createPORAssignmentController = asyncHandler(
     async (req: Request, res: Response) => {

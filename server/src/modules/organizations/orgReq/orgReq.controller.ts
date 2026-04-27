@@ -15,7 +15,7 @@ import {
     approveOrganizationRequest,
     createOrganizationRequest,
     rejectOrganizationRequest,
-} from "./request.service";
+} from "./orgReq.service";
 
 export const createOrganizationRequestController = asyncHandler(
     async (req: Request, res: Response) => {

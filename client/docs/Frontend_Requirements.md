@@ -417,6 +417,130 @@ Settings includes profile edits, privacy controls, block list, and sessions.
 
 ---
 
+## Module 7: Organization Request Workflow
+
+## Scope Now
+
+Implemented backend routes:
+
+1. `POST /api/v1/organizations/requests`
+2. `POST /api/v1/organizations/requests/:requestId/approve`
+3. `POST /api/v1/organizations/requests/:requestId/reject`
+
+## Required Pages
+
+1. Organization request submission page (student-facing)
+2. Organization request review workspace (admin/super-admin-facing)
+
+## Required UI Blocks
+
+1. Organization basics form section (name, slug, category, optional parent)
+2. First tenure form section (name, cycleYear, start/end date inputs)
+3. First tenure role-config builder table (role, parentRoleId, level, sortOrder, maxHolders, canBeVacant)
+4. Creator requested role selector
+5. Approval requirement toggle (`requiresParentTopPorApproval`)
+
+## Required Modals
+
+1. Confirm request submit
+2. Confirm approve request
+3. Reject request modal with mandatory remarks field
+
+## Required API Calls
+
+1. `POST /api/v1/organizations/requests`
+2. `POST /api/v1/organizations/requests/:requestId/approve`
+3. `POST /api/v1/organizations/requests/:requestId/reject`
+
+## UX Requirements
+
+1. Slug conflict (`409`) must render inline against slug field.
+2. Parent-approval toggle should enforce parent org selection in UI.
+3. Reject action must enforce remarks before API call.
+4. Approve/reject buttons should have per-action pending state and double-submit guard.
+
+## Backend Suggestions For UI
+
+1. Keep role and parent-role IDs from role source lists, never role labels in payload.
+2. Use backend message text to show moderation outcome copy.
+3. Approve/reject routes are admin-gated; hide actions for non-admin users.
+
+## Acceptance Checklist
+
+1. Student can submit valid request payload without contract mismatch.
+2. Admin can approve/reject with clear success/failure states.
+3. Reject remarks are mandatory and validated in UI.
+
+---
+
+## Module 8: POR Tenure, Role Config, and Assignment
+
+## Scope Now
+
+Implemented backend routes include tenure CRUD/status, role-config CRUD/tree/bulk/clone, and assignment create.
+
+## Required Pages
+
+1. Tenure list page per organization
+2. Tenure create/edit drawer
+3. Tenure role-config management page with hierarchy view
+4. Assignment creation panel for tenure role configs
+
+## Required UI Blocks
+
+1. Month/year period picker (startMonth/startYear/endMonth/endYear)
+2. Tenure status badge + status transition action block
+3. Role config editable table and hierarchy tree view
+4. Assignment form with optional partial month/year period fields
+
+## Required Modals
+
+1. Confirm tenure status transition
+2. Confirm role-config deletion
+3. Confirm clone role-configs from another tenure
+
+## Required API Calls
+
+1. `GET /api/v1/pors/tenures`
+2. `GET /api/v1/pors/tenures/:tenureId`
+3. `POST /api/v1/pors/tenures`
+4. `PATCH /api/v1/pors/tenures/:tenureId`
+5. `PATCH /api/v1/pors/tenures/:tenureId/status`
+6. `GET /api/v1/pors/tenures/:tenureId/role-configs`
+7. `GET /api/v1/pors/tenures/:tenureId/role-configs/tree`
+8. `POST /api/v1/pors/tenures/:tenureId/role-configs`
+9. `PUT /api/v1/pors/tenures/:tenureId/role-configs/bulk`
+10. `PATCH /api/v1/pors/tenures/:tenureId/role-configs/:configId`
+11. `PATCH /api/v1/pors/tenures/:tenureId/role-configs/:configId/status`
+12. `DELETE /api/v1/pors/tenures/:tenureId/role-configs/:configId`
+13. `POST /api/v1/pors/tenures/:tenureId/role-configs/clone-from/:sourceTenureId`
+14. `POST /api/v1/pors/assignments`
+
+## UX Requirements
+
+1. Tenure form must treat month/year as primary period contract.
+2. Role-config table must validate required role on create and enforce numeric ranges in UI.
+3. Assignment form must support full-tenure default and optional partial period override.
+4. Conflict responses (`409`) should map to specific UI messages:
+    - tenure overlap
+    - role at capacity
+    - duplicate active assignment
+    - role-config mutation conflicts
+
+## Backend Suggestions For UI
+
+1. For tenure updates, if user edits period, submit all four month/year fields together.
+2. For partial assignment period, send all four assignment period fields together.
+3. Role-config tree view should use `/tree` endpoint instead of re-constructing hierarchy in frontend.
+
+## Acceptance Checklist
+
+1. Tenure create/update works with month/year payloads and conflict handling.
+2. Role-config CRUD/bulk/clone paths are fully wired with form validation.
+3. Assignment create supports both full and partial tenure windows.
+
+---
+
 ## Cross-Module UX Contracts
 
 ## Required State Matrix For Every Data Block
@@ -489,6 +613,23 @@ For editable forms:
 4. User enters room number.
 5. Frontend sends `currentHostelId` + numeric `currentRoomNo`.
 6. Backend response updates profile state.
+
+## Flow F: Organization Request To Approval
+
+1. Student opens organization request page.
+2. Frontend captures organization + first tenure + role-config hierarchy + creator role.
+3. Frontend submits request.
+4. Admin opens request review workspace.
+5. Admin approves or rejects with remarks.
+6. UI reflects final status and provisioning outcome.
+
+## Flow G: Tenure Setup To Assignment
+
+1. Admin creates tenure with month/year period fields.
+2. Admin creates or bulk-upserts role configs for that tenure.
+3. Admin creates assignment for selected role config.
+4. Optional partial assignment window is provided for mid-tenure cases.
+5. Frontend refreshes tenure/role-config/assignment state after mutation.
 
 ---
 

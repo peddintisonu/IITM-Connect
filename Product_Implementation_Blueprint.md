@@ -320,9 +320,9 @@ Flow blueprint:
     - Parent top-POR approval optional when org is parent-linked and governance policy requires it.
 3. Provisioning:
     - Create organization record.
-    - Create first tenure record.
+    - Create first tenure record using month/year cycle inputs mapped to date boundaries.
     - Create first tenure role configuration rows.
-    - Activate creator role assignment after verification.
+    - Activate creator role assignment after verification (full-tenure or partial window as policy requires).
 4. Post-approval operations:
     - Organization page actions are controlled by role-duty policies and hierarchy approval rules.
 
@@ -350,6 +350,7 @@ Suggested implementation:
 3. Explicit approval graph by role level.
 4. Separate role labels from duty permissions to avoid policy ambiguity.
 5. Keep role catalog stable while per-tenure activation/hierarchy changes remain flexible.
+6. Keep assignment period fields explicit to support mid-tenure join/leave scenarios.
 
 UX expectations:
 
@@ -388,6 +389,8 @@ Suggested implementation:
 3. State machine for pre-close, close, and archive milestones.
 4. Tenure role config as one row per role per tenure for update isolation and audit clarity.
 5. Keep historical tenure configurations immutable once archived.
+6. Use month/year tenure windows as source-of-truth API contract and derive date boundaries for overlap checks.
+7. Allow assignment sub-windows that are bounded by the selected tenure period.
 
 UX expectations:
 
@@ -395,6 +398,7 @@ UX expectations:
 2. Handover checklist view with completion indicators.
 3. Historical handover archive access for next holders.
 4. Current team vs past teams views derived from active/closed tenure assignments.
+5. Partial-term visual markers for assignments that do not span full tenure window.
 
 Risks:
 

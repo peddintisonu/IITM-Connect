@@ -2,7 +2,7 @@
 
 ## Snapshot
 
-- Date: 21-04-2026
+- Date: 27-04-2026
 - Stack in active use: Express + TypeScript + MongoDB + Passport Google OAuth + Zod + Swagger + React + Vite
 - Current source of truth split:
     - `PRD.md` -> product vision and V1/V2 scope
@@ -29,6 +29,8 @@
 
 - `/api/v1/auth`
 - `/api/v1/master-data`
+- `/api/v1/organizations`
+- `/api/v1/pors`
 - `/api/v1/students`
 - `/api/v1/social`
 - `/api/v1/health`
@@ -214,29 +216,32 @@
 
 ### Completed
 
-- Organization module base model is in place with:
-    - category
-    - slug
-    - profile/core metadata
-    - parent org linkage
-    - capability flags
-- POR role catalog model is in place with category allow-list and duplicate prevention strategy.
-- Tenure model is in place with lifecycle and handover status support.
-- Tenure role config model is in place (one role config document per role per tenure).
-- Organization request model is in place with:
-    - student-initiated request payload
-    - first tenure payload
-    - first tenure role config payload
-    - creator requested role
-    - approval-step workflow support
-    - optional parent-top-POR approval step in addition to super-admin step
-- Organization duty model is in place to map role-level duties and approval authority flags.
+- Organization request APIs are implemented:
+    - `POST /api/v1/organizations/requests`
+    - `POST /api/v1/organizations/requests/:requestId/approve`
+    - `POST /api/v1/organizations/requests/:requestId/reject`
+- Organization request approval flow is transactional and materializes:
+    - organization
+    - first tenure
+    - first tenure role configs
+    - creator initial POR assignment
+- Optional parent-top-POR approval step support is implemented in request model and approval-step orchestration.
+- POR tenure APIs are implemented:
+    - list/get/create/update/status transition
+- Tenure role config APIs are implemented:
+    - list/tree/create/bulk-upsert/update/status/delete/clone
+- POR assignment create API is implemented with role-capacity and duplicate-active guards.
+- Tenure period model now supports month/year contract (`startMonth`, `startYear`, `endMonth`, `endYear`) while preserving derived date fields for overlap checks.
+- Assignment payload now supports optional partial period bounds inside tenure (`assignmentStartMonth`, `assignmentStartYear`, `assignmentEndMonth`, `assignmentEndYear`).
+- Consolidated module-level Swagger docs are in place:
+    - organizations: `organization.swagger.ts`
+    - pors: `pors.swagger.ts`
 
 ### Current Status
 
-- Data models are implemented.
-- Service/controller/routes and transactional provisioning flow are not yet implemented.
-- No live organization API mount yet.
+- Core org request + POR tenure/config/assignment foundation is live.
+- Governance duty enforcement middleware and org action authorization matrix are not yet wired into runtime route protection.
+- POR lifecycle beyond create-assignment (nomination/approval/revocation/handover packet flows) is pending.
 
 ---
 
@@ -327,25 +332,16 @@
 
 ## 5.7 Organization and Governance Next Up
 
-- Implement organization request service and APIs:
-    - submit request
-    - list/review queue
-    - approve/reject with remarks
-- Implement approval orchestration:
-    - super-admin approval flow
-    - optional parent-top-POR approval participation
-- Implement transactional provisioning on approval:
-    - create organization
-    - create first tenure
-    - create first tenure role configuration set
-    - verify/activate creator role assignment
-- Implement role-duty enforcement middleware for organization actions.
-- Add POR holder assignment model and APIs for current-team and past-team derivation.
-- Add validation guards:
-    - date validity
-    - hierarchy consistency
-    - duplicate/invalid role config detection
-    - request-state transition integrity
+- Add organization request list/review queue endpoints for admin operational dashboards.
+- Implement role-duty enforcement middleware and org action policy checks.
+- Add hierarchy integrity guards in tenure role config flows:
+    - immediate-parent level consistency
+    - cycle prevention
+- Extend POR assignment lifecycle APIs:
+    - release/deactivate assignment
+    - history/current-team projections
+- Add complete POR nomination/approval/revocation workflows and handover packet flows.
+- Add integration tests for org request approval transaction, tenure overlap checks, and role-config active-assignment constraints.
 
 ---
 

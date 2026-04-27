@@ -1,18 +1,18 @@
 import mongoose from "mongoose";
 
-import { HTTP_STATUS } from "../../../../shared/constants/http-status.constants";
-import { ApiError, toObjectId } from "../../../../shared/utils";
-import PORAssignment from "../../assignments/assignment.model";
-import { TENURE_STATUS } from "../../constants/tenure.constants";
-import PORRole from "../../roles/porRole.model";
-import TenureRoleConfig, {
-    type ITenureRoleConfig,
-} from "../configs/tenureRoleConfig.model";
+import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
+import { ApiError, toObjectId } from "../../../shared/utils";
+import { TENURE_STATUS } from "../constants/tenure.constants";
+import PORAssignment from "../porAssignments/porAssignment.model";
+import PORRole from "../roles/porRole.model";
 import {
     tenureConfigErrorMessages,
     tenureErrorMessages,
-} from "../tenure.messages";
-import Tenure, { type ITenure } from "../tenure.model";
+} from "../tenures/tenure.messages";
+import Tenure, { type ITenure } from "../tenures/tenure.model";
+import TenureRoleConfig, {
+    type ITenureRoleConfig,
+} from "./tenureRoleConfig.model";
 
 export const ensureTenureExistsForConfig = async (tenureId: string) => {
     const tenure = await Tenure.findById(tenureId);

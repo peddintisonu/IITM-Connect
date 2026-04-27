@@ -11,7 +11,6 @@ import PORRole from "../../pors/roles/porRole.model";
 import { ORGANIZATION_REQUEST_STATUS } from "../constants/organizationRequest.constants";
 import { organizationErrorMessages } from "../organization.messages";
 import OrganizationModel from "../organization.model";
-import OrganizationRequest from "./request.model";
 import {
     buildApprovedOrganizationPayload,
     buildApprovedOrganizationRequestMetadata,
@@ -21,7 +20,8 @@ import {
     buildRejectedOrganizationRequestMetadata,
     getPendingApprovalStepIndex,
     isRoleApplicableForCategory,
-} from "./utils";
+} from "../utils";
+import OrganizationRequest from "./orgReq.model";
 
 export const createOrganizationRequest = async (
     requestedBy: string,

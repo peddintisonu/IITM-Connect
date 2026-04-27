@@ -4,17 +4,16 @@ import express from "express";
 import morgan from "morgan";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
-import { corsOptions } from "./config/cors";
 import passport from "./config/passport";
 
 import authRoutes from "./modules/auth/auth.routes";
 import masterDataRoutes from "./modules/core/masterData.routes";
-import organizationRequestRoutes from "./modules/organizations/requests/request.routes";
-import porAssignmentRoutes from "./modules/pors/assignments/assignment.routes";
-import tenureRoutes from "./modules/pors/tenures/tenure.routes";
+import organizationRoutes from "./modules/organizations/organization.routes";
+import porsRoutes from "./modules/pors/pors.routes";
 import socialRoutes from "./modules/social/social.routes";
 import studentRoutes from "./modules/students/student.routes";
 
+import { corsOptions } from "./config/cors";
 import { swaggerOptions } from "./config/swagger";
 import { protectRoute } from "./shared/middleware/auth.middleware";
 import errorHandler from "./shared/middleware/errorHandler";
@@ -23,7 +22,7 @@ const app = express();
 const specs = swaggerJsdoc(swaggerOptions);
 
 app.use(express.json());
-app.use(cors(corsOptrions));
+app.use(cors(corsOptions));
 app.use(morgan("dev"));
 app.use(cookieParser());
 app.use(passport.initialize());
@@ -33,9 +32,8 @@ app.get("/", protectRoute, (req, res) => {
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/master-data", masterDataRoutes);
-app.use("/api/v1/organizations", organizationRequestRoutes);
-app.use("/api/v1/pors", porAssignmentRoutes);
-app.use("/api/v1/pors", tenureRoutes);
+app.use("/api/v1/organizations", organizationRoutes);
+app.use("/api/v1/pors", porsRoutes);
 app.use("/api/v1/students", studentRoutes);
 app.use("/api/v1/social", socialRoutes);
 app.get("/api/v1/health", (req, res) => {

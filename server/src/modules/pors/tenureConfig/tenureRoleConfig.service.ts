@@ -1,7 +1,7 @@
 import { AnyBulkWriteOperation } from "mongoose";
 
-import { HTTP_STATUS } from "../../../../shared/constants/http-status.constants";
-import { ApiError, toObjectId } from "../../../../shared/utils";
+import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
+import { ApiError, toObjectId } from "../../../shared/utils";
 import {
     BulkUpsertTenureRoleConfigsInput,
     CloneTenureRoleConfigsInput,
@@ -9,8 +9,8 @@ import {
     ListTenureRoleConfigsQueryInput,
     UpdateTenureRoleConfigInput,
     UpdateTenureRoleConfigStatusInput,
-} from "../../../../validations/tenureRoleConfig.validation";
-import Tenure from "../tenure.model";
+} from "../../../validations/tenureRoleConfig.validation";
+import { tenureConfigErrorMessages } from "../tenures/tenure.messages";
 import {
     assertCanDeactivateOrDeleteConfig,
     assertConfigDatesWithinTenure,
@@ -21,9 +21,10 @@ import {
     ensureTenureExistsForConfig,
     ensureTenureRoleConfig,
     parseBulkConfigUpdate,
-} from "../utils";
-import { tenureConfigErrorMessages } from "../tenure.messages";
-import TenureRoleConfig, { type ITenureRoleConfig } from "./tenureRoleConfig.model";
+} from "./tenureConfig.utils";
+import TenureRoleConfig, {
+    type ITenureRoleConfig,
+} from "./tenureRoleConfig.model";
 
 const toNormalizedParentRoleId = (parentRoleId?: string | null) => {
     if (!parentRoleId) {
@@ -218,15 +219,18 @@ export const updateTenureRoleConfig = async (
     }
 
     if (data.parentRoleId !== undefined) {
-        config.parentRoleId = toNormalizedParentRoleId(data.parentRoleId) ?? undefined;
+        config.parentRoleId =
+            toNormalizedParentRoleId(data.parentRoleId) ?? undefined;
     }
 
     if (data.level !== undefined) config.level = data.level;
     if (data.sortOrder !== undefined) config.sortOrder = data.sortOrder;
     if (data.canBeVacant !== undefined) config.canBeVacant = data.canBeVacant;
-    if (data.effectiveFrom !== undefined) config.effectiveFrom = data.effectiveFrom;
+    if (data.effectiveFrom !== undefined)
+        config.effectiveFrom = data.effectiveFrom;
     if (data.effectiveTo !== undefined) config.effectiveTo = data.effectiveTo;
-    if (data.changeReason !== undefined) config.changeReason = data.changeReason;
+    if (data.changeReason !== undefined)
+        config.changeReason = data.changeReason;
 
     config.updatedBy = toObjectId(updatedBy);
 

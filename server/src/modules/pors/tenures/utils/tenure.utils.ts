@@ -1,5 +1,3 @@
-import mongoose from "mongoose";
-
 import { HTTP_STATUS } from "../../../../shared/constants/http-status.constants";
 import { ApiError, toObjectId } from "../../../../shared/utils";
 import {
@@ -7,7 +5,7 @@ import {
     type TenureStatus,
 } from "../../constants/tenure.constants";
 import { tenureErrorMessages } from "../tenure.messages";
-import Tenure, { type ITenure } from "../tenure.model";
+import Tenure from "../tenure.model";
 
 const ALLOWED_STATUS_TRANSITIONS: Record<TenureStatus, TenureStatus[]> = {
     [TENURE_STATUS.PLANNED]: [TENURE_STATUS.ACTIVE, TENURE_STATUS.ARCHIVED],
@@ -101,8 +99,8 @@ export const buildOverlapFilter = (
     startDate: Date,
     endDate: Date,
     excludeTenureId?: string
-): mongoose.FilterQuery<ITenure> => {
-    const filter: mongoose.FilterQuery<ITenure> = {
+): Record<string, unknown> => {
+    const filter: Record<string, unknown> = {
         orgId: toObjectId(orgId),
         $or: [
             {

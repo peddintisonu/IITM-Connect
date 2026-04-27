@@ -22,14 +22,18 @@
  *         level:
  *           type: integer
  *           minimum: 0
+ *           default: 0
  *         sortOrder:
  *           type: integer
  *           minimum: 0
+ *           default: 0
  *         maxHolders:
  *           type: integer
  *           minimum: 1
+ *           default: 1
  *         canBeVacant:
  *           type: boolean
+ *           default: true
  *     OrganizationRequestCreateBody:
  *       type: object
  *       required:
@@ -88,10 +92,12 @@
  *               format: uri
  *             establishedYear:
  *               type: integer
+ *               minimum: 1900
  *             parentOrgId:
  *               type: string
  *             isPermanent:
  *               type: boolean
+ *               default: false
  *         firstTenure:
  *           type: object
  *           required:
@@ -103,6 +109,7 @@
  *               type: string
  *             cycleYear:
  *               type: integer
+ *               minimum: 1900
  *             startDate:
  *               type: string
  *               format: date-time
@@ -117,6 +124,7 @@
  *           type: string
  *         requiresParentTopPorApproval:
  *           type: boolean
+ *           default: false
  *     OrganizationRequestRejectBody:
  *       type: object
  *       required:
@@ -145,7 +153,7 @@
  *       201:
  *         description: Organization request created
  *       400:
- *         description: Validation failed or role/category mismatch
+ *         description: Validation failed, invalid parent organization, parent-approval precondition failure, or role/category mismatch
  *         content:
  *           application/json:
  *             schema:
@@ -188,6 +196,12 @@
  *     responses:
  *       200:
  *         description: Organization request approved
+ *       400:
+ *         description: Final materialization failed due to request payload inconsistency (for example creator role config not found)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       401:
  *         description: Unauthorized
  *         content:
@@ -258,6 +272,12 @@
  *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Organization request not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       409:
+ *         description: Request is not pending
  *         content:
  *           application/json:
  *             schema:

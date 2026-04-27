@@ -7,11 +7,11 @@ import {
 import { CreatePORAssignmentInput } from "../../../validations/porAssignment.validation";
 import Student from "../../students/student.model";
 import PORRole from "../roles/porRole.model";
-import TenureRoleConfig from "../tenures/configs/tenureRoleConfig.model";
+import TenureRoleConfig from "../tenureConfig/tenureRoleConfig.model";
 import Tenure from "../tenures/tenure.model";
 import { compareMonthYear } from "../tenures/utils";
-import { porAssignmentErrorMessages } from "./assignment.messages";
-import PORAssignment from "./assignment.model";
+import { porAssignmentErrorMessages } from "./porAssignment.messages";
+import PORAssignment from "./porAssignment.model";
 
 export const createPORAssignment = async (
     assignedBy: string,

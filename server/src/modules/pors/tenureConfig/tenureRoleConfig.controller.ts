@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 
-import { HTTP_STATUS } from "../../../../shared/constants/http-status.constants";
+import { HTTP_STATUS } from "../../../shared/constants/http-status.constants";
 import {
     ApiResponse,
     asyncHandler,
     validateAndParse,
-} from "../../../../shared/utils";
+} from "../../../shared/utils";
 import {
     bulkUpsertTenureRoleConfigsSchema,
     cloneTenureRoleConfigsSchema,
@@ -13,7 +13,8 @@ import {
     listTenureRoleConfigsQuerySchema,
     updateTenureRoleConfigSchema,
     updateTenureRoleConfigStatusSchema,
-} from "../../../../validations/tenureRoleConfig.validation";
+} from "../../../validations/tenureRoleConfig.validation";
+import { tenureConfigRouteMessages } from "../tenures/tenure.messages";
 import {
     bulkUpsertTenureRoleConfigs,
     cloneTenureRoleConfigs,
@@ -24,11 +25,13 @@ import {
     updateTenureRoleConfig,
     updateTenureRoleConfigStatus,
 } from "./tenureRoleConfig.service";
-import { tenureConfigRouteMessages } from "../tenure.messages";
+
+const getSingleParam = (value: string | string[]) =>
+    Array.isArray(value) ? value[0] : value;
 
 export const createTenureRoleConfigController = asyncHandler(
     async (req: Request, res: Response) => {
-        const tenureId = req.params.tenureId;
+        const tenureId = getSingleParam(req.params.tenureId);
         const data = validateAndParse(createTenureRoleConfigSchema, req.body);
 
         const config = await createTenureRoleConfig(
@@ -49,7 +52,7 @@ export const createTenureRoleConfigController = asyncHandler(
 
 export const bulkUpsertTenureRoleConfigsController = asyncHandler(
     async (req: Request, res: Response) => {
-        const tenureId = req.params.tenureId;
+        const tenureId = getSingleParam(req.params.tenureId);
         const data = validateAndParse(
             bulkUpsertTenureRoleConfigsSchema,
             req.body
@@ -73,8 +76,11 @@ export const bulkUpsertTenureRoleConfigsController = asyncHandler(
 
 export const listTenureRoleConfigsController = asyncHandler(
     async (req: Request, res: Response) => {
-        const tenureId = req.params.tenureId;
-        const query = validateAndParse(listTenureRoleConfigsQuerySchema, req.query);
+        const tenureId = getSingleParam(req.params.tenureId);
+        const query = validateAndParse(
+            listTenureRoleConfigsQuerySchema,
+            req.query
+        );
 
         const configs = await listTenureRoleConfigs(tenureId, query);
 
@@ -90,7 +96,7 @@ export const listTenureRoleConfigsController = asyncHandler(
 
 export const getTenureRoleConfigTreeController = asyncHandler(
     async (req: Request, res: Response) => {
-        const tenureId = req.params.tenureId;
+        const tenureId = getSingleParam(req.params.tenureId);
         const tree = await getTenureRoleConfigTree(tenureId);
 
         res.status(HTTP_STATUS.OK).json(
@@ -105,8 +111,8 @@ export const getTenureRoleConfigTreeController = asyncHandler(
 
 export const updateTenureRoleConfigController = asyncHandler(
     async (req: Request, res: Response) => {
-        const tenureId = req.params.tenureId;
-        const configId = req.params.configId;
+        const tenureId = getSingleParam(req.params.tenureId);
+        const configId = getSingleParam(req.params.configId);
         const data = validateAndParse(updateTenureRoleConfigSchema, req.body);
 
         const config = await updateTenureRoleConfig(
@@ -128,8 +134,8 @@ export const updateTenureRoleConfigController = asyncHandler(
 
 export const updateTenureRoleConfigStatusController = asyncHandler(
     async (req: Request, res: Response) => {
-        const tenureId = req.params.tenureId;
-        const configId = req.params.configId;
+        const tenureId = getSingleParam(req.params.tenureId);
+        const configId = getSingleParam(req.params.configId);
         const data = validateAndParse(
             updateTenureRoleConfigStatusSchema,
             req.body
@@ -154,8 +160,8 @@ export const updateTenureRoleConfigStatusController = asyncHandler(
 
 export const deleteTenureRoleConfigController = asyncHandler(
     async (req: Request, res: Response) => {
-        const tenureId = req.params.tenureId;
-        const configId = req.params.configId;
+        const tenureId = getSingleParam(req.params.tenureId);
+        const configId = getSingleParam(req.params.configId);
 
         await deleteTenureRoleConfig(tenureId, configId);
 
@@ -171,8 +177,8 @@ export const deleteTenureRoleConfigController = asyncHandler(
 
 export const cloneTenureRoleConfigsController = asyncHandler(
     async (req: Request, res: Response) => {
-        const tenureId = req.params.tenureId;
-        const sourceTenureId = req.params.sourceTenureId;
+        const tenureId = getSingleParam(req.params.tenureId);
+        const sourceTenureId = getSingleParam(req.params.sourceTenureId);
         const data = validateAndParse(cloneTenureRoleConfigsSchema, req.body);
 
         const result = await cloneTenureRoleConfigs(

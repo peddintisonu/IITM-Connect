@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-import { ORGANIZATION_REQUEST_STATUS } from "../../constants/organizationRequest.constants";
-import type { IOrganizationRequest } from "../request.model";
+import { ORGANIZATION_REQUEST_STATUS } from "../constants/organizationRequest.constants";
+import type { IOrganizationRequest } from "../orgReq/orgReq.model";
 
 export const getPendingApprovalStepIndex = (organizationRequest: {
     approvalSteps: { status: string }[];

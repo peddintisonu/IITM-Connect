@@ -4,13 +4,13 @@ import {
     protectRoute,
     requireOnboardingComplete,
     requireRoles,
-} from "../../../shared/middleware/auth.middleware";
-import { STUDENT_ROLE } from "../../students/student.model";
+} from "../../shared/middleware/auth.middleware";
+import { STUDENT_ROLE } from "../students/student.model";
 import {
     approveOrganizationRequestController,
     createOrganizationRequestController,
     rejectOrganizationRequestController,
-} from "./request.controller";
+} from "./orgReq/orgReq.controller";
 
 const router = Router();
 

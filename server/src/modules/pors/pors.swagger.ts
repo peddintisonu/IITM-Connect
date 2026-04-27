@@ -55,6 +55,7 @@
  *           description: Optional partial assignment end year within tenure
  *         notes:
  *           type: string
+ *           maxLength: 500
  *     TenureCreateBody:
  *       type: object
  *       required:
@@ -87,6 +88,14 @@
  *           type: integer
  *           minimum: 1900
  *           maximum: 2500
+ *         startDate:
+ *           type: string
+ *           format: date-time
+ *           description: Optional compatibility field; service derives from month/year when omitted
+ *         endDate:
+ *           type: string
+ *           format: date-time
+ *           description: Optional compatibility field; service derives from month/year when omitted
  *         status:
  *           type: string
  *           enum: [planned, active, grace, closed, archived]
@@ -109,25 +118,74 @@
  *           type: integer
  *           minimum: 1
  *           maximum: 12
+ *         startDate:
+ *           type: string
+ *           format: date-time
+ *           description: Optional compatibility field
+ *         endDate:
+ *           type: string
+ *           format: date-time
+ *           description: Optional compatibility field
  *         endYear:
  *           type: integer
  *           minimum: 1900
- *           maximum: 2500
+ *     TenureRoleConfigCreateBody:
+ *       type: object
+ *       required:
+ *         - roleId
+ *       properties:
+ *         roleId:
+ *           type: string
+ *         isActiveInTenure:
+ *           type: boolean
+ *         parentRoleId:
+ *           type: string
+ *           nullable: true
+ *           description: Empty string or null clears parent
+ *         level:
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 10
+ *         sortOrder:
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 999
+ *         maxHolders:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *         canBeVacant:
+ *           type: boolean
+ *         effectiveFrom:
+ *           type: string
+ *           format: date-time
+ *         effectiveTo:
+ *           type: string
+ *           format: date-time
+ *         changeReason:
+ *           type: string
+ *           maxLength: 300
+ *     TenureRoleConfigUpdateBody:
  *         status:
  *           type: string
- *           enum: [planned, active, grace, closed, archived]
- *     TenureStatusUpdateBody:
  *       type: object
  *       required:
  *         - status
  *       properties:
  *         status:
+ *           description: Empty string or null clears parent
  *           type: string
  *           enum: [planned, active, grace, closed, archived]
+ *           minimum: 0
+ *           maximum: 10
  *     TenureRoleConfigWrite:
  *       type: object
+ *           minimum: 0
+ *           maximum: 999
  *       properties:
  *         roleId:
+ *           minimum: 1
+ *           maximum: 100
  *           type: string
  *         isActiveInTenure:
  *           type: boolean
@@ -150,6 +208,10 @@
  *           format: date-time
  *         changeReason:
  *           type: string
+ *           maxLength: 300
+ *     TenureRoleConfigBulkItem:
+ *       allOf:
+ *         - $ref: '#/components/schemas/TenureRoleConfigCreateBody'
  *     BulkTenureRoleConfigUpsertBody:
  *       type: object
  *       required:
@@ -158,9 +220,10 @@
  *         configs:
  *           type: array
  *           items:
- *             $ref: '#/components/schemas/TenureRoleConfigWrite'
+ *             $ref: '#/components/schemas/TenureRoleConfigBulkItem'
  *         overwriteExisting:
  *           type: boolean
+ *           default: true
  *     TenureRoleConfigStatusBody:
  *       type: object
  *       required:
@@ -170,11 +233,13 @@
  *           type: boolean
  *         changeReason:
  *           type: string
+ *           maxLength: 300
  *     CloneTenureRoleConfigsBody:
  *       type: object
  *       properties:
  *         overwriteExisting:
  *           type: boolean
+ *           default: false
  */
 
 /**
@@ -196,7 +261,7 @@
  *       201:
  *         description: POR assignment created
  *       400:
- *         description: Validation failed
+ *         description: Validation failed or assignment period outside tenure bounds
  *         content:
  *           application/json:
  *             schema:
@@ -297,6 +362,12 @@
  *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Tenure not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       409:
+ *         description: Overlapping tenure window for organization
  *         content:
  *           application/json:
  *             schema:
@@ -542,7 +613,7 @@
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/TenureRoleConfigWrite'
+ *             $ref: '#/components/schemas/TenureRoleConfigCreateBody'
  *     responses:
  *       201:
  *         description: Tenure role config created
@@ -657,7 +728,7 @@
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/TenureRoleConfigWrite'
+ *             $ref: '#/components/schemas/TenureRoleConfigUpdateBody'
  *     responses:
  *       200:
  *         description: Tenure role config updated

@@ -8,4 +8,4 @@ export {
     ensureCreatorRequestedRoleConfig,
     getPendingApprovalStepIndex,
     isRoleApplicableForCategory,
-} from "../requests/utils/request.utils";
+} from "./orgReq.utils";
